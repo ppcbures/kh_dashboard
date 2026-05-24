@@ -33,6 +33,7 @@ interface ClickRow {
   clickText: string;
   clickUrl: string;
   count: number;
+  users: number;
 }
 
 interface PageDetail {
@@ -165,6 +166,7 @@ export default function PagesAnalysis() {
           clickText: row.dimensionValues[0]?.value || "(nezjištěno)",
           clickUrl: row.dimensionValues[1]?.value || "",
           count: parseInt(row.metricValues[0]?.value || "0"),
+          users: parseInt(row.metricValues[1]?.value || "0"),
         }))
         .filter((r: ClickRow) => r.clickText !== "(not set)");
 
@@ -476,7 +478,8 @@ export default function PagesAnalysis() {
                           <tr className="bg-gray-50 border-b border-gray-200">
                             <th className="text-left px-4 py-3 text-gray-600 font-semibold">Text kliknutí</th>
                             <th className="text-left px-4 py-3 text-gray-600 font-semibold">Cílová URL</th>
-                            <th className="text-right px-4 py-3 text-gray-600 font-semibold">Počet</th>
+                            <th className="text-right px-4 py-3 text-gray-600 font-semibold">Uživatelé</th>
+                            <th className="text-right px-4 py-3 text-gray-600 font-semibold">Kliknutí</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -486,7 +489,7 @@ export default function PagesAnalysis() {
                               <td className="px-4 py-3">
                                 {c.clickUrl ? (
                                   <a href={c.clickUrl} target="_blank" rel="noopener noreferrer"
-                                    className="text-blue-600 hover:underline text-xs font-mono truncate block max-w-[200px]"
+                                    className="text-blue-600 hover:underline text-xs font-mono"
                                     title={c.clickUrl}>
                                     {c.clickUrl.replace(/^https?:\/\/[^/]+/, "") || "/"}
                                   </a>
@@ -494,7 +497,8 @@ export default function PagesAnalysis() {
                                   <span className="text-gray-400 text-xs">—</span>
                                 )}
                               </td>
-                              <td className="px-4 py-3 text-right text-gray-800 font-semibold">{formatNumber(c.count)}</td>
+                              <td className="px-4 py-3 text-right text-gray-800 font-semibold">{formatNumber(c.users)}</td>
+                              <td className="px-4 py-3 text-right text-gray-600">{formatNumber(c.count)}</td>
                             </tr>
                           ))}
                         </tbody>

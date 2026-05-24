@@ -99,7 +99,7 @@ export async function GET(req: NextRequest) {
             { name: "customEvent:click_text" },
             { name: "customEvent:click_url" },
           ],
-          metrics: [{ name: "eventCount" }],
+          metrics: [{ name: "eventCount" }, { name: "totalUsers" }],
           dimensionFilter: {
             andGroup: {
               expressions: [
@@ -129,9 +129,10 @@ export async function GET(req: NextRequest) {
     const nextPages = get(nextPagesRes);
     const clicks = get(clicksRes);
 
-    if (clicksRes.status === "rejected") {
-      console.warn("link_click query failed (custom dimensions click_text/click_url pravdepodobne nejsou registrovany v GA4):", clicksRes.reason);
-    }
+    // Logovat chyby pro debugging
+    if (prevPagesRes.status === "rejected") console.warn("prevPages failed:", prevPagesRes.reason);
+    if (nextPagesRes.status === "rejected") console.warn("nextPages failed:", nextPagesRes.reason);
+    if (clicksRes.status === "rejected") console.warn("link_click failed:", clicksRes.reason);
 
     return NextResponse.json({
       summary: summary?.data?.rows?.[0] || null,
@@ -139,6 +140,13 @@ export async function GET(req: NextRequest) {
       prevPages: prevPages?.data?.rows || [],
       nextPages: nextPages?.data?.rows || [],
       clicks: clicks?.data?.rows || [],
+      // Debug info
+      _debug: {
+        prevPagesStatus: prevPagesRes.status,
+        nextPagesStatus: nextPagesRes.status,
+        prevPagesCount: prevPages?.data?.rows?.length ?? 0,
+        nextPagesCount: nextPages?.data?.rows?.length ?? 0,
+      },
     });
   } catch (error) {
     console.error("GA page-detail error:", error);

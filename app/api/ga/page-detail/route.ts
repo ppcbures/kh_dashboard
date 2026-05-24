@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { google } from "googleapis";
 
+const SITE_ORIGIN = process.env.NEXT_PUBLIC_SITE_ORIGIN || "https://klimatizace-hustopece.cz";
+
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("Authorization");
   const accessToken = authHeader?.replace("Bearer ", "");
@@ -59,36 +61,35 @@ export async function GET(req: NextRequest) {
         },
       }),
 
-      // Předchozí stránky — co uživatelé navštívili PŘED touto stránkou
-      // pagePath = aktuální stránka, previousPagePath = odkud přišli
+      // Předchozí stránky — pageReferrer při zobrazení aktuální stránky
+      // (interní = cesta na webu, externí = doména, prázdné = přímý vstup)
       analyticsData.properties.runReport({
         property: propertyId,
         requestBody: {
           dateRanges: [{ startDate, endDate }],
-          dimensions: [{ name: "pagePath" }, { name: "previousPagePath" }],
+          dimensions: [{ name: "pageReferrer" }],
           metrics: [{ name: "screenPageViews" }],
           dimensionFilter: pageFilter,
           orderBys: [{ metric: { metricName: "screenPageViews" }, desc: true }],
-          limit: "11",
+          limit: "15",
         },
       }),
 
-      // Následující stránky — kam uživatelé šli PO této stránce
-      // previousPagePath = aktuální stránka, pagePath = kam šli
+      // Následující stránky — pagePath kde pageReferrer = plná URL aktuální stránky
       analyticsData.properties.runReport({
         property: propertyId,
         requestBody: {
           dateRanges: [{ startDate, endDate }],
-          dimensions: [{ name: "previousPagePath" }, { name: "pagePath" }],
+          dimensions: [{ name: "pagePath" }],
           metrics: [{ name: "screenPageViews" }],
           dimensionFilter: {
             filter: {
-              fieldName: "previousPagePath",
-              stringFilter: { matchType: "EXACT" as const, value: pagePath },
+              fieldName: "pageReferrer",
+              stringFilter: { matchType: "EXACT" as const, value: `${SITE_ORIGIN}${pagePath}` },
             },
           },
           orderBys: [{ metric: { metricName: "screenPageViews" }, desc: true }],
-          limit: "11",
+          limit: "10",
         },
       }),
 
@@ -139,21 +140,35 @@ export async function GET(req: NextRequest) {
     if (nextPagesRes.status === "rejected") console.warn("nextPages failed:", nextPagesRes.reason);
     if (clicksRes.status === "rejected") console.warn("link_click failed:", clicksRes.reason);
 
-    // prevPages: dimenze jsou [pagePath, previousPagePath] — bereme index 1 (previousPagePath)
+    // prevPages: pageReferrer → přeložit na čitelný label
+    // Prázdné / "(direct)" = přímý vstup, stejný origin = interní cesta, jinak = externí doména
     const prevRows = (prevPages?.data?.rows || [])
-      .map((row) => ({
-        dimensionValues: [{ value: row.dimensionValues?.[1]?.value || "" }],
-        metricValues: row.metricValues,
-      }))
-      .filter((r) => r.dimensionValues[0].value && r.dimensionValues[0].value !== "(entrance)");
+      .map((row) => {
+        const referrer = row.dimensionValues?.[0]?.value || "";
+        let label: string;
+        if (!referrer || referrer === "(direct)") {
+          label = "(entrance)"; // zpracujeme v UI
+        } else if (referrer.startsWith(SITE_ORIGIN)) {
+          // Interní odkaz — extrahovat cestu
+          try { label = new URL(referrer).pathname; } catch { label = referrer.replace(SITE_ORIGIN, ""); }
+        } else {
+          // Externí referrer — zobrazit doménu
+          try { label = new URL(referrer).hostname; } catch { label = referrer.substring(0, 50); }
+        }
+        return {
+          dimensionValues: [{ value: label }],
+          metricValues: row.metricValues,
+        };
+      })
+      .filter((r) => !!r.dimensionValues[0].value);
 
-    // nextPages: dimenze jsou [previousPagePath, pagePath] — bereme index 1 (pagePath)
+    // nextPages: pagePath — rovnou použijeme
     const nextRows = (nextPages?.data?.rows || [])
       .map((row) => ({
-        dimensionValues: [{ value: row.dimensionValues?.[1]?.value || "" }],
+        dimensionValues: [{ value: row.dimensionValues?.[0]?.value || "" }],
         metricValues: row.metricValues,
       }))
-      .filter((r) => r.dimensionValues[0].value && r.dimensionValues[0].value !== "(exit)");
+      .filter((r) => !!r.dimensionValues[0].value);
 
     return NextResponse.json({
       summary: summary?.data?.rows?.[0] || null,

@@ -22,7 +22,7 @@ export default function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="w-64 min-h-screen bg-black text-white flex flex-col">
+    <aside className="w-64 h-screen bg-black text-white flex flex-col flex-shrink-0">
       {/* Logo */}
       <div className="px-4 py-4 border-b border-white/10">
         <a href="https://klimatizace-hustopece.cz" target="_blank" rel="noopener noreferrer">

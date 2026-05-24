@@ -52,6 +52,7 @@ export default function PagesAnalysis() {
   const [pageDetail, setPageDetail] = useState<PageDetail | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [search, setSearch] = useState("");
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const accessToken = (session as { accessToken?: string })?.accessToken;
 
@@ -186,49 +187,74 @@ export default function PagesAnalysis() {
       ) : (
         <div className="flex flex-1 overflow-hidden">
           {/* Levý panel — seznam stránek */}
-          <div className="w-80 border-r border-gray-200 flex flex-col bg-gray-50">
-            <div className="p-3 border-b border-gray-200">
-              <input
-                type="text"
-                placeholder="Hledat stránku..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-              />
-            </div>
+          {sidebarOpen ? (
+            <div className="w-80 border-r border-gray-200 flex flex-col bg-gray-50 flex-shrink-0">
+              {/* Hlavička panelu */}
+              <div className="p-3 border-b border-gray-200 flex gap-2 items-center">
+                <input
+                  type="text"
+                  placeholder="Hledat stránku..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                />
+                <button
+                  onClick={() => setSidebarOpen(false)}
+                  title="Skrýt výpis stránek"
+                  className="flex-shrink-0 p-2 rounded-lg text-gray-400 hover:bg-gray-200 hover:text-gray-600 transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+              </div>
 
-            <div className="flex-1 overflow-y-auto">
-              {loadingPages ? (
-                <div className="flex items-center justify-center h-32">
-                  <div className="w-6 h-6 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin" />
-                </div>
-              ) : filteredPages.length === 0 ? (
-                <p className="text-center text-gray-400 text-sm py-8">Žádné stránky nenalezeny</p>
-              ) : (
-                filteredPages.map((page) => (
-                  <button
-                    key={page.pagePath}
-                    onClick={() => fetchDetail(page)}
-                    className={`w-full text-left px-4 py-3 border-b border-gray-100 hover:bg-white transition-colors ${
-                      selectedPage?.pagePath === page.pagePath ? "bg-white border-l-2 border-l-blue-500" : ""
-                    }`}
-                  >
-                    <p className="text-sm font-medium text-gray-800 truncate" title={page.pagePath}>
-                      {page.pagePath}
-                    </p>
-                    <p className="text-xs text-gray-400 truncate mt-0.5" title={page.pageTitle}>
-                      {page.pageTitle}
-                    </p>
-                    <div className="flex gap-3 mt-1.5">
-                      <span className="text-xs text-gray-600">
-                        <span className="font-semibold">{formatNumber(page.views)}</span> zobrazení
-                      </span>
-                    </div>
-                  </button>
-                ))
-              )}
+              <div className="flex-1 overflow-y-auto">
+                {loadingPages ? (
+                  <div className="flex items-center justify-center h-32">
+                    <div className="w-6 h-6 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin" />
+                  </div>
+                ) : filteredPages.length === 0 ? (
+                  <p className="text-center text-gray-400 text-sm py-8">Žádné stránky nenalezeny</p>
+                ) : (
+                  filteredPages.map((page) => (
+                    <button
+                      key={page.pagePath}
+                      onClick={() => fetchDetail(page)}
+                      className={`w-full text-left px-4 py-3 border-b border-gray-100 hover:bg-white transition-colors ${
+                        selectedPage?.pagePath === page.pagePath ? "bg-white border-l-2 border-l-blue-500" : ""
+                      }`}
+                    >
+                      <p className="text-sm font-medium text-gray-800 truncate" title={page.pagePath}>
+                        {page.pagePath}
+                      </p>
+                      <p className="text-xs text-gray-400 truncate mt-0.5" title={page.pageTitle}>
+                        {page.pageTitle}
+                      </p>
+                      <div className="flex gap-3 mt-1.5">
+                        <span className="text-xs text-gray-600">
+                          <span className="font-semibold">{formatNumber(page.views)}</span> zobrazení
+                        </span>
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
             </div>
-          </div>
+          ) : (
+            /* Sidebar skrytý — zobraz jen tlačítko otevřít */
+            <div className="border-r border-gray-200 bg-gray-50 flex flex-col items-center py-4">
+              <button
+                onClick={() => setSidebarOpen(true)}
+                title="Otevřít seznam stránek"
+                className="p-2 rounded-lg text-gray-400 hover:bg-gray-200 hover:text-gray-600 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
+          )}
 
           {/* Pravý panel — detail stránky */}
           <div className="flex-1 overflow-y-auto p-6">

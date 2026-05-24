@@ -533,7 +533,7 @@ export default function PagesAnalysis() {
                         pageDetail.prevPages.map((r, i) => (
                           <div key={i} className="flex items-center justify-between px-4 py-2.5 border-b border-gray-50 hover:bg-gray-50">
                             {r.path === "(entrance)" ? (
-                              <span className="text-sm text-blue-600 italic">↗ Přímý vstup (Google / odkaz)</span>
+                              <span className="text-sm text-blue-600 italic">↗ Přímý vstup (reklama / odkaz)</span>
                             ) : (
                               <span className="text-sm text-gray-700 truncate font-mono" title={r.path}>{r.path}</span>
                             )}

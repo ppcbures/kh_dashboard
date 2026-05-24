@@ -29,9 +29,14 @@ export default function PropertySelector({ accessToken, selectedProperty, onSele
         const props: Property[] = data.properties || [];
         setProperties(props);
 
-        // Automaticky vyber první (a jedinou) property
+        // Automaticky vyber property podle klíčového slova z env, jinak první
         if (props.length > 0 && !selectedProperty) {
-          onSelect(props[0].name, props[0].displayName);
+          const keyword = process.env.NEXT_PUBLIC_GA_PROPERTY_KEYWORD?.toLowerCase();
+          const match = keyword
+            ? props.find((p) => p.displayName.toLowerCase().includes(keyword) || p.name.toLowerCase().includes(keyword))
+            : null;
+          const chosen = match ?? props[0];
+          onSelect(chosen.name, chosen.displayName);
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Chyba");

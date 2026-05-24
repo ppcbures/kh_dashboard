@@ -3,7 +3,8 @@
 import { useSession } from "next-auth/react";
 import { useState, useEffect, useCallback } from "react";
 import PropertySelector from "@/components/PropertySelector";
-import DateRangePicker, { DateRange, getDefaultRange } from "@/components/DateRangePicker";
+import DateRangePicker from "@/components/DateRangePicker";
+import { useDateRange } from "@/contexts/DateRangeContext";
 
 type GaSortKey = "views" | "sessions" | "users" | "avgDuration" | "bounceRate";
 
@@ -62,7 +63,7 @@ export default function PagesAnalysis() {
   const { data: session } = useSession();
   const [selectedProperty, setSelectedProperty] = useState<string | null>(null);
   const [propertyName, setPropertyName] = useState<string>("");
-  const [dateRange, setDateRange] = useState<DateRange>(getDefaultRange());
+  const { dateRange, setDateRange } = useDateRange();
   const [pages, setPages] = useState<PageRow[]>([]);
   const [loadingPages, setLoadingPages] = useState(false);
   const [selectedPage, setSelectedPage] = useState<PageRow | null>(null);

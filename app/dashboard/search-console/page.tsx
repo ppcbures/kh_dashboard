@@ -2,7 +2,8 @@
 
 import { useSession } from "next-auth/react";
 import { useState, useEffect, useCallback } from "react";
-import DateRangePicker, { DateRange, getDefaultRange } from "@/components/DateRangePicker";
+import DateRangePicker from "@/components/DateRangePicker";
+import { useDateRange } from "@/contexts/DateRangeContext";
 
 const SITE_KEYWORD = process.env.NEXT_PUBLIC_SITE_KEYWORD || "klimatizace-hustopece";
 
@@ -63,7 +64,7 @@ export default function SearchConsolePage() {
   const { data: session } = useSession();
   const accessToken = (session as { accessToken?: string })?.accessToken;
 
-  const [dateRange, setDateRange] = useState<DateRange>(getDefaultRange());
+  const { dateRange, setDateRange } = useDateRange();
   const [siteUrl, setSiteUrl] = useState<string | null>(null);
   const [overview, setOverview] = useState<Overview | null>(null);
   const [loadingOverview, setLoadingOverview] = useState(false);

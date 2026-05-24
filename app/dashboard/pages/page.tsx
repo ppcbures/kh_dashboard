@@ -488,7 +488,7 @@ export default function PagesAnalysis() {
                                   <a href={c.clickUrl} target="_blank" rel="noopener noreferrer"
                                     className="text-blue-600 hover:underline text-xs font-mono truncate block max-w-[200px]"
                                     title={c.clickUrl}>
-                                    {c.clickUrl}
+                                    {c.clickUrl.replace(/^https?:\/\/[^/]+/, "") || "/"}
                                   </a>
                                 ) : (
                                   <span className="text-gray-400 text-xs">—</span>

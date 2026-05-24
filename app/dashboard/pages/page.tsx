@@ -509,9 +509,9 @@ export default function PagesAnalysis() {
                   )}
                 </div>
 
-                {/* Cesta uživatele */}
-                <div className="mb-8">
-                  <h3 className="text-base font-semibold text-gray-800 mb-4">Cesta uživatele</h3>
+                {/* Tok návštěvníků */}
+                <div className="mb-8 mt-6">
+                  <h3 className="text-base font-semibold text-gray-800 mb-4">Tok návštěvníků</h3>
 
                   {/* Debug panel — zobrazí se pouze pokud jsou chyby nebo nulová data */}
                   {journeyDebug && (journeyDebug.prevPagesStatus === "rejected" || journeyDebug.nextPagesStatus === "rejected") && (

@@ -59,36 +59,62 @@ function formatNumber(n: number): string {
   return n.toLocaleString("cs-CZ");
 }
 
-/** Odstraní UTM a tracking parametry z URL */
+/** Odstraní UTM a tracking parametry z URL (včetně utm_* bez ohledu na suffix) */
 function stripUtm(url: string): string {
   if (!url) return url;
-  const trackingParams = ["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "gclid", "fbclid", "msclkid", "mc_eid"];
+  const staticTracking = ["gclid", "fbclid", "msclkid", "mc_eid"];
   try {
-    const u = new URL(url);
-    trackingParams.forEach(p => u.searchParams.delete(p));
-    let result = u.toString();
-    // Odstranit prázdný ? nebo & na konci
-    result = result.replace(/[?&]$/, "");
-    return result;
+    const base = url.startsWith("/") ? `https://x${url}` : url;
+    const u = new URL(base);
+    const toDelete = [...u.searchParams.keys()].filter(
+      k => k.startsWith("utm_") || staticTracking.includes(k)
+    );
+    toDelete.forEach(k => u.searchParams.delete(k));
+    // Pokud jsme přidali fake doménu, vrátíme jen path+search
+    const result = url.startsWith("/")
+      ? u.pathname + (u.search || "")
+      : u.toString().replace(/[?&]$/, "");
+    return result || "/";
   } catch {
-    // Relativní URL nebo nevalidní — regex fallback
-    return url.replace(new RegExp(`[?&](${trackingParams.join("|")}|[^=&]*)=[^&]*`, "g"), "").replace(/[?&]$/, "");
+    return url.replace(/[?&]utm_[^=]*=[^&]*/g, "").replace(/[?&](gclid|fbclid|msclkid|mc_eid)=[^&]*/g, "").replace(/[?&]$/, "") || url;
   }
 }
 
 const SITE_ORIGIN = "https://klimatizace-hustopece.cz";
 
-/** Vrátí src obrázku pokud clickText obsahuje <img> tag, jinak null.
- *  Funguje i když GA4 ořeže atribut (chybí zavírací uvozovka). */
+const IMG_EXT = /\.(jpe?g|png|gif|webp|svg|ico|avif)(\?.*)?$/i;
+
+/** Vrátí absolutní URL obrázku, nebo null pokud to není obrázek.
+ *  Detekuje: <img src="...">, přímou cestu /wp-content/..., nebo URL obrázku. */
 function extractImgSrc(text: string): string | null {
-  if (!text || !text.includes("<img")) return null;
-  // Zkusit src=".." nebo src='..', ale i ořezané src="https://...  (bez zavírací uvozovky)
-  const match = text.match(/src=["']([^"'\s>]*)/i);
-  if (!match?.[1]) return null;
-  const src = match[1];
-  // Relativní URL → doplnit doménu webu
-  if (src.startsWith("/")) return `${SITE_ORIGIN}${src}`;
-  return src;
+  if (!text) return null;
+
+  // 1) <img> tag — extrahujeme src (i ořezaný, bez zavírací uvozovky)
+  if (text.includes("<img")) {
+    const match = text.match(/src=["']([^"'\s>]*)/i);
+    const src = match?.[1] ?? "";
+    // Zahazujeme ořezané "https://" nebo "http://" bez dalšího obsahu
+    if (src && src !== "https://" && src !== "http://" && !src.endsWith("://")) {
+      if (src.startsWith("/")) return `${SITE_ORIGIN}${src}`;
+      return src;
+    }
+    return null;
+  }
+
+  // 2) click_text je přímo cesta k souboru (/wp-content/..., /wp-includes/...)
+  if (text.startsWith("/wp-content/") || text.startsWith("/wp-includes/")) {
+    // Doplnit doménu + odstranit případné oříznutí (neúplná přípona)
+    const full = `${SITE_ORIGIN}${text}`;
+    return full;
+  }
+
+  // 3) click_text je URL obrázku s rozpoznatelnou příponou
+  if (IMG_EXT.test(text)) {
+    if (text.startsWith("/")) return `${SITE_ORIGIN}${text}`;
+    return text;
+  }
+
+  return null;
 }
 
 export default function PagesAnalysis() {

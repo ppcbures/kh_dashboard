@@ -76,11 +76,19 @@ function stripUtm(url: string): string {
   }
 }
 
-/** Vrátí src obrázku pokud clickText obsahuje <img> tag, jinak null */
+const SITE_ORIGIN = "https://klimatizace-hustopece.cz";
+
+/** Vrátí src obrázku pokud clickText obsahuje <img> tag, jinak null.
+ *  Funguje i když GA4 ořeže atribut (chybí zavírací uvozovka). */
 function extractImgSrc(text: string): string | null {
   if (!text || !text.includes("<img")) return null;
-  const match = text.match(/src=["']([^"']+)["']/i);
-  return match?.[1] ?? null;
+  // Zkusit src=".." nebo src='..', ale i ořezané src="https://...  (bez zavírací uvozovky)
+  const match = text.match(/src=["']([^"'\s>]*)/i);
+  if (!match?.[1]) return null;
+  const src = match[1];
+  // Relativní URL → doplnit doménu webu
+  if (src.startsWith("/")) return `${SITE_ORIGIN}${src}`;
+  return src;
 }
 
 export default function PagesAnalysis() {

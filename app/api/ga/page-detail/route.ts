@@ -106,7 +106,7 @@ export async function GET(req: NextRequest) {
                 {
                   filter: {
                     fieldName: "eventName",
-                    stringFilter: { matchType: "EXACT", value: "click_custom" },
+                    stringFilter: { matchType: "EXACT", value: "link_click" },
                   },
                 },
                 pageFilter,
@@ -130,7 +130,7 @@ export async function GET(req: NextRequest) {
     const clicks = get(clicksRes);
 
     if (clicksRes.status === "rejected") {
-      console.warn("click_custom query failed (custom dimensions pravdepodobne nejsou registrovany v GA4):", clicksRes.reason);
+      console.warn("link_click query failed (custom dimensions click_text/click_url pravdepodobne nejsou registrovany v GA4):", clicksRes.reason);
     }
 
     return NextResponse.json({

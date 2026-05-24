@@ -35,7 +35,7 @@ export default function Sidebar() {
     <aside className="w-64 h-screen bg-black text-white flex flex-col flex-shrink-0">
       {/* Logo */}
       <div className="px-4 py-4 border-b border-white/10">
-        <a href="https://klimatizace-hustopece.cz" target="_blank" rel="noopener noreferrer">
+        <Link href="/dashboard/pages">
           <div className="bg-white rounded-lg px-3 py-2 flex items-center justify-center">
             <Image
               src="https://klimatizace-hustopece.cz/wp-content/uploads/2021/03/Datovy-zdroj-2-300x54.png"
@@ -46,7 +46,7 @@ export default function Sidebar() {
               unoptimized
             />
           </div>
-        </a>
+        </Link>
       </div>
 
       {/* Navigation */}

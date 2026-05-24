@@ -1,7 +1,9 @@
 "use client";
 
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useState, useEffect } from "react";
 import { DateRange, getDefaultRange } from "@/components/DateRangePicker";
+
+const STORAGE_KEY = "kh-dashboard-date-range";
 
 interface DateRangeContextValue {
   dateRange: DateRange;
@@ -10,8 +12,30 @@ interface DateRangeContextValue {
 
 const DateRangeContext = createContext<DateRangeContextValue | null>(null);
 
+function loadRange(): DateRange {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as DateRange;
+      if (parsed.startDate && parsed.endDate) return parsed;
+    }
+  } catch {}
+  return getDefaultRange();
+}
+
 export function DateRangeProvider({ children }: { children: React.ReactNode }) {
-  const [dateRange, setDateRange] = useState<DateRange>(getDefaultRange());
+  const [dateRange, setDateRangeState] = useState<DateRange>(getDefaultRange());
+
+  // Načíst z localStorage po hydrataci (ne při SSR)
+  useEffect(() => {
+    setDateRangeState(loadRange());
+  }, []);
+
+  function setDateRange(range: DateRange) {
+    setDateRangeState(range);
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(range)); } catch {}
+  }
+
   return (
     <DateRangeContext.Provider value={{ dateRange, setDateRange }}>
       {children}

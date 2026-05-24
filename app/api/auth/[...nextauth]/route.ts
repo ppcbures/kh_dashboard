@@ -14,6 +14,7 @@ export const authOptions: NextAuthOptions = {
             "email",
             "profile",
             "https://www.googleapis.com/auth/analytics.readonly",
+            "https://www.googleapis.com/auth/webmasters.readonly",
           ].join(" "),
           access_type: "offline",
           prompt: "consent",

@@ -59,6 +59,30 @@ function formatNumber(n: number): string {
   return n.toLocaleString("cs-CZ");
 }
 
+/** Odstraní UTM a tracking parametry z URL */
+function stripUtm(url: string): string {
+  if (!url) return url;
+  const trackingParams = ["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "gclid", "fbclid", "msclkid", "mc_eid"];
+  try {
+    const u = new URL(url);
+    trackingParams.forEach(p => u.searchParams.delete(p));
+    let result = u.toString();
+    // Odstranit prázdný ? nebo & na konci
+    result = result.replace(/[?&]$/, "");
+    return result;
+  } catch {
+    // Relativní URL nebo nevalidní — regex fallback
+    return url.replace(new RegExp(`[?&](${trackingParams.join("|")}|[^=&]*)=[^&]*`, "g"), "").replace(/[?&]$/, "");
+  }
+}
+
+/** Vrátí src obrázku pokud clickText obsahuje <img> tag, jinak null */
+function extractImgSrc(text: string): string | null {
+  if (!text || !text.includes("<img")) return null;
+  const match = text.match(/src=["']([^"']+)["']/i);
+  return match?.[1] ?? null;
+}
+
 export default function PagesAnalysis() {
   const { data: session } = useSession();
   const [selectedProperty, setSelectedProperty] = useState<string | null>(null);
@@ -166,14 +190,25 @@ export default function PagesAnalysis() {
         }))
         .filter((r: PathRow) => r.path && r.path !== "(exit)" && r.path !== "(not set)");
 
-      const clicks: ClickRow[] = (data.clicks || [])
-        .map((row: ApiRow) => ({
-          clickText: row.dimensionValues[0]?.value || "(nezjištěno)",
-          clickUrl: row.dimensionValues[1]?.value || "",
-          count: parseInt(row.metricValues[0]?.value || "0"),
-          users: parseInt(row.metricValues[1]?.value || "0"),
-        }))
-        .filter((r: ClickRow) => r.clickText !== "(not set)");
+      // Kliknutí — strip UTM parametrů + seskup stejné URL
+      const clickMap = new Map<string, ClickRow>();
+      for (const row of (data.clicks || []) as ApiRow[]) {
+        const rawText = row.dimensionValues[0]?.value || "";
+        const rawUrl = row.dimensionValues[1]?.value || "";
+        if (rawText === "(not set)" && !rawUrl) continue;
+        const cleanUrl = stripUtm(rawUrl);
+        const key = `${rawText}|||${cleanUrl}`;
+        const count = parseInt(row.metricValues[0]?.value || "0");
+        const users = parseInt(row.metricValues[1]?.value || "0");
+        if (clickMap.has(key)) {
+          const ex = clickMap.get(key)!;
+          ex.count += count;
+          ex.users += users;
+        } else {
+          clickMap.set(key, { clickText: rawText || "(nezjištěno)", clickUrl: cleanUrl, count, users });
+        }
+      }
+      const clicks: ClickRow[] = Array.from(clickMap.values()).sort((a, b) => b.count - a.count);
 
       setPageDetail({
         views: parseInt(summary?.metricValues[0]?.value || "0"),
@@ -488,24 +523,41 @@ export default function PagesAnalysis() {
                           </tr>
                         </thead>
                         <tbody>
-                          {pageDetail.clicks.map((c, i) => (
-                            <tr key={i} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                              <td className="px-4 py-3 text-gray-800 font-medium">{c.clickText}</td>
-                              <td className="px-4 py-3">
-                                {c.clickUrl ? (
-                                  <a href={c.clickUrl} target="_blank" rel="noopener noreferrer"
-                                    className="text-blue-600 hover:underline text-xs font-mono"
-                                    title={c.clickUrl}>
-                                    {c.clickUrl.replace(/^https?:\/\/[^/]+/, "") || "/"}
-                                  </a>
-                                ) : (
-                                  <span className="text-gray-400 text-xs">—</span>
-                                )}
-                              </td>
-                              <td className="px-4 py-3 text-right text-gray-800 font-semibold">{formatNumber(c.users)}</td>
-                              <td className="px-4 py-3 text-right text-gray-600">{formatNumber(c.count)}</td>
-                            </tr>
-                          ))}
+                          {pageDetail.clicks.map((c, i) => {
+                            const imgSrc = extractImgSrc(c.clickText);
+                            return (
+                              <tr key={i} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                                {/* Text kliknutí — pokud je to img tag, ukáž klikatelný náhled */}
+                                <td className="px-4 py-3 text-gray-800 font-medium max-w-xs">
+                                  {imgSrc ? (
+                                    <a href={imgSrc} target="_blank" rel="noopener noreferrer"
+                                      className="flex items-center gap-2 group"
+                                      title={imgSrc}>
+                                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                                      <img src={imgSrc} alt="" className="h-8 w-12 object-cover rounded border border-gray-200 flex-shrink-0" onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                                      <span className="text-blue-600 group-hover:underline text-xs font-mono break-all">{imgSrc.replace(/^https?:\/\/[^/]+/, "") || imgSrc}</span>
+                                    </a>
+                                  ) : (
+                                    <span className="break-words">{c.clickText}</span>
+                                  )}
+                                </td>
+                                {/* Cílová URL — plná (UTM odstraněny) */}
+                                <td className="px-4 py-3">
+                                  {c.clickUrl ? (
+                                    <a href={c.clickUrl} target="_blank" rel="noopener noreferrer"
+                                      className="text-blue-600 hover:underline text-xs font-mono break-all"
+                                      title={c.clickUrl}>
+                                      {c.clickUrl.replace(/^https?:\/\/[^/]+/, "") || c.clickUrl}
+                                    </a>
+                                  ) : (
+                                    <span className="text-gray-400 text-xs">—</span>
+                                  )}
+                                </td>
+                                <td className="px-4 py-3 text-right text-gray-800 font-semibold">{formatNumber(c.users)}</td>
+                                <td className="px-4 py-3 text-right text-gray-600">{formatNumber(c.count)}</td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>

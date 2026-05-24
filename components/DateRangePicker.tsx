@@ -8,6 +8,14 @@ export interface DateRange {
   label: string;
 }
 
+// Bezpečné formátování bez UTC konverze (toISOString() by posunulo datum při CET/CEST)
+function fmt(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 function getDefaultRange(): DateRange {
   const today = new Date();
   const yesterday = new Date(today);
@@ -17,8 +25,8 @@ function getDefaultRange(): DateRange {
   const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
 
   return {
-    startDate: firstDay.toISOString().split("T")[0],
-    endDate: yesterday.toISOString().split("T")[0],
+    startDate: fmt(firstDay),
+    endDate: fmt(yesterday),
     label: "Tento měsíc",
   };
 }
@@ -37,8 +45,6 @@ const PRESETS: DateRange[] = (() => {
   const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0);
   const last7 = new Date(today); last7.setDate(today.getDate() - 7);
   const last30 = new Date(today); last30.setDate(today.getDate() - 30);
-
-  const fmt = (d: Date) => d.toISOString().split("T")[0];
 
   return [
     { label: "Tento měsíc", startDate: fmt(firstThisMonth), endDate: fmt(yesterday) },

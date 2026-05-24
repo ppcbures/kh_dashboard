@@ -30,11 +30,6 @@ interface PathRow {
   sessions: number;
 }
 
-interface ChainRow {
-  pathA: string | null; // null = přímý vstup nebo neznámé A
-  pathB: string;        // "(entrance)" = přímý vstup bez interní B
-  views: number;
-}
 
 interface ClickRow {
   clickText: string;
@@ -50,7 +45,7 @@ interface PageDetail {
   avgDuration: number;
   bounceRate: number;
   sources: SourceRow[];
-  prevChains: ChainRow[];
+  prevPages: PathRow[];
   nextPages: PathRow[];
   clicks: ClickRow[];
 }
@@ -219,12 +214,10 @@ export default function PagesAnalysis() {
         users: parseInt(row.metricValues[2]?.value || "0"),
       }));
 
-      // Řetězce A → B (server vrací prevChains)
-      const prevChains: ChainRow[] = (data.prevChains || []).map(
-        (r: { pathA: string | null; pathB: string; views: number }) => ({
-          pathA: r.pathA,
-          pathB: r.pathB,
-          views: r.views,
+      const prevPages: PathRow[] = (data.prevPages || []).map(
+        (r: { pathB: string; views: number }) => ({
+          path: r.pathB,
+          sessions: r.views,
         })
       );
 
@@ -262,7 +255,7 @@ export default function PagesAnalysis() {
         sessions: parseInt(summary?.metricValues[3]?.value || "0"),
         users: parseInt(summary?.metricValues[4]?.value || "0"),
         sources,
-        prevChains,
+        prevPages,
         nextPages,
         clicks,
       });
@@ -517,45 +510,24 @@ export default function PagesAnalysis() {
                   )}
 
                   <div className="flex gap-3 items-start">
-                    {/* Předchozí stránky — řetězec A → B */}
+                    {/* Předchozí stránky */}
                     <div className="flex-1 bg-white rounded-xl border border-gray-200 overflow-hidden">
                       <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
                         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">← Odkud přišli</p>
                       </div>
-                      {pageDetail.prevChains.length === 0 ? (
+                      {pageDetail.prevPages.length === 0 ? (
                         <p className="text-sm text-gray-400 px-4 py-3">Žádná data</p>
                       ) : (
-                        pageDetail.prevChains.map((r, i) => {
-                          const isDirectEntrance = r.pathB === "(entrance)";
-                          return (
-                            <div key={i} className="flex items-center justify-between px-4 py-2.5 border-b border-gray-50 hover:bg-gray-50 gap-2">
-                              <div className="flex items-center gap-1 min-w-0 flex-1 font-mono text-sm">
-                                {isDirectEntrance ? (
-                                  <span className="text-blue-600 italic truncate">↗ Přímý vstup</span>
-                                ) : (
-                                  <>
-                                    {/* A stránka (pokud existuje) */}
-                                    {r.pathA !== null && (
-                                      <>
-                                        <span className="text-gray-400 truncate" title={r.pathA}>{r.pathA}</span>
-                                        <span className="text-gray-300 flex-shrink-0">→</span>
-                                      </>
-                                    )}
-                                    {r.pathA === null && (
-                                      <>
-                                        <span className="text-blue-500 italic text-xs flex-shrink-0">↗ vstup</span>
-                                        <span className="text-gray-300 flex-shrink-0">→</span>
-                                      </>
-                                    )}
-                                    {/* B stránka */}
-                                    <span className="text-gray-700 font-medium truncate" title={r.pathB}>{r.pathB}</span>
-                                  </>
-                                )}
-                              </div>
-                              <span className="text-xs text-gray-400 flex-shrink-0">{formatNumber(r.views)}×</span>
-                            </div>
-                          );
-                        })
+                        pageDetail.prevPages.map((r, i) => (
+                          <div key={i} className="flex items-center justify-between px-4 py-2.5 border-b border-gray-50 hover:bg-gray-50">
+                            {r.path === "(entrance)" ? (
+                              <span className="text-sm text-blue-600 italic">↗ Přímý vstup (Google / odkaz)</span>
+                            ) : (
+                              <span className="text-sm text-gray-700 truncate font-mono" title={r.path}>{r.path}</span>
+                            )}
+                            <span className="text-xs text-gray-400 ml-2 flex-shrink-0">{formatNumber(r.sessions)}×</span>
+                          </div>
+                        ))
                       )}
                     </div>
 

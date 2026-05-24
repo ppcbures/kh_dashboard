@@ -156,65 +156,8 @@ export async function GET(req: NextRequest) {
     }
     const bPages = Array.from(prevMapB.entries()).sort((a, b) => b[1] - a[1]).slice(0, 10);
 
-    // ── Fáze 2: pro každou interní B stránku získej její referrery (A stránky) ──
-    const internalBPages = bPages.filter(([path]) => path !== "(entrance)").slice(0, 5);
-
-    const chainResults = await Promise.allSettled(
-      internalBPages.map(([bPath]) =>
-        analyticsData.properties.runReport({
-          property: propertyId,
-          requestBody: {
-            dateRanges: [{ startDate, endDate }],
-            dimensions: [{ name: "pageReferrer" }],
-            metrics: [{ name: "screenPageViews" }],
-            dimensionFilter: {
-              filter: {
-                fieldName: "pagePath",
-                stringFilter: { matchType: "EXACT" as const, value: bPath },
-              },
-            },
-            orderBys: [{ metric: { metricName: "screenPageViews" }, desc: true }],
-            limit: "5",
-          },
-        })
-      )
-    );
-
-    // ── Sestavení prevChains: [{pathA, pathB, views}] ────────────────────────
-    // Základ: všechny B stránky (i entrance) bez A
-    const prevRows: { pathA: string | null; pathB: string; views: number }[] = [];
-
-    for (const [bPath, bViews] of bPages) {
-      if (bPath === "(entrance)") {
-        // Přímý vstup — žádné A
-        prevRows.push({ pathA: null, pathB: "(entrance)", views: bViews });
-        continue;
-      }
-
-      // Interní B — podívat se jestli máme chain data
-      const bIdx = internalBPages.findIndex(([p]) => p === bPath);
-      const chainRes = bIdx >= 0 ? get(chainResults[bIdx]) : null;
-
-      if (chainRes?.data?.rows?.length) {
-        // Máme A stránky pro tuto B — seskupit
-        const aMap = new Map<string | null, number>();
-        for (const row of chainRes.data.rows) {
-          const aLabel = referrerToPath(row.dimensionValues?.[0]?.value || "");
-          const v = parseInt(row.metricValues?.[0]?.value || "0");
-          const key = aLabel === "(entrance)" ? null : aLabel;
-          aMap.set(key, (aMap.get(key) || 0) + v);
-        }
-        for (const [aPath, views] of Array.from(aMap.entries()).sort((a, b) => b[1] - a[1]).slice(0, 3)) {
-          prevRows.push({ pathA: aPath, pathB: bPath, views });
-        }
-      } else {
-        // Nemáme A data — zobrazit jen B
-        prevRows.push({ pathA: null, pathB: bPath, views: bViews });
-      }
-    }
-
-    // Seřadit podle views
-    prevRows.sort((a, b) => b.views - a.views);
+    // ── Sestavení prevRows: [{pathB, views}] ────────────────────────────────
+    const prevRows = bPages.map(([pathB, views]) => ({ pathB, views }));
 
     // ── Následující stránky ──────────────────────────────────────────────────
     const nextRows = (nextPages?.data?.rows || [])
@@ -227,14 +170,14 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       summary: summary?.data?.rows?.[0] || null,
       sources: sources?.data?.rows || [],
-      prevChains: prevRows,   // nový formát s řetězcem A → B
+      prevPages: prevRows,
       nextPages: nextRows,
       clicks: clicks?.data?.rows || [],
       _debug: {
         prevPagesStatus: prevPagesRes.status,
         prevPagesError: getErr(prevPagesRes),
         prevPagesRawCount: prevPagesRaw?.data?.rows?.length ?? 0,
-        prevChainsCount: prevRows.length,
+        prevPagesCount: prevRows.length,
         nextPagesStatus: nextPagesRes.status,
         nextPagesError: getErr(nextPagesRes),
         nextPagesCount: nextRows.length,

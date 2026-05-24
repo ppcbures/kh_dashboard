@@ -26,7 +26,13 @@ export default function PropertySelector({ accessToken, selectedProperty, onSele
         });
         if (!res.ok) throw new Error("Nepodařilo se načíst properties");
         const data = await res.json();
-        setProperties(data.properties || []);
+        const props: Property[] = data.properties || [];
+        setProperties(props);
+
+        // Automaticky vyber první (a jedinou) property
+        if (props.length > 0 && !selectedProperty) {
+          onSelect(props[0].name, props[0].displayName);
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Chyba");
       } finally {
@@ -34,13 +40,14 @@ export default function PropertySelector({ accessToken, selectedProperty, onSele
       }
     }
     fetchProperties();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accessToken]);
 
   if (loading) {
     return (
       <div className="flex items-center gap-2 text-sm text-gray-500">
         <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin" />
-        Načítám GA4 účty...
+        Načítám GA4...
       </div>
     );
   }
@@ -49,6 +56,19 @@ export default function PropertySelector({ accessToken, selectedProperty, onSele
     return <p className="text-sm text-red-500">{error}</p>;
   }
 
+  // Pokud je jen jedna property — zobraz jen název, žádný dropdown
+  if (properties.length === 1) {
+    return (
+      <div className="flex items-center gap-2 text-sm text-gray-600">
+        <svg className="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <span className="font-medium">{properties[0].displayName}</span>
+      </div>
+    );
+  }
+
+  // Více properties — zobraz dropdown
   return (
     <div className="flex items-center gap-3">
       <label className="text-sm font-medium text-gray-700 whitespace-nowrap">

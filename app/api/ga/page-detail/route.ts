@@ -140,26 +140,28 @@ export async function GET(req: NextRequest) {
     if (nextPagesRes.status === "rejected") console.warn("nextPages failed:", nextPagesRes.reason);
     if (clicksRes.status === "rejected") console.warn("link_click failed:", clicksRes.reason);
 
-    // prevPages: pageReferrer → přeložit na čitelný label
-    // Prázdné / "(direct)" = přímý vstup, stejný origin = interní cesta, jinak = externí doména
-    const prevRows = (prevPages?.data?.rows || [])
-      .map((row) => {
-        const referrer = row.dimensionValues?.[0]?.value || "";
-        let label: string;
-        if (!referrer || referrer === "(direct)") {
-          label = "(entrance)"; // zpracujeme v UI
-        } else if (referrer.startsWith(SITE_ORIGIN)) {
-          // Interní odkaz — extrahovat cestu
-          try { label = new URL(referrer).pathname; } catch { label = referrer.replace(SITE_ORIGIN, ""); }
-        } else {
-          // Externí referrer — zobrazit doménu
-          try { label = new URL(referrer).hostname; } catch { label = referrer.substring(0, 50); }
-        }
-        return {
-          dimensionValues: [{ value: label }],
-          metricValues: row.metricValues,
-        };
-      })
+    // prevPages: pageReferrer → interní cesta NEBO seskupit do (entrance)
+    const prevMap = new Map<string, number>();
+    for (const row of prevPages?.data?.rows || []) {
+      const referrer = row.dimensionValues?.[0]?.value || "";
+      const views = parseInt(row.metricValues?.[0]?.value || "0");
+      let label: string;
+      if (referrer.startsWith(SITE_ORIGIN)) {
+        // Interní odkaz — extrahovat cestu
+        try { label = new URL(referrer).pathname; } catch { label = referrer.replace(SITE_ORIGIN, ""); }
+      } else {
+        // Vše ostatní (Google, Facebook, přímý vstup, ...) → seskupit do (entrance)
+        label = "(entrance)";
+      }
+      prevMap.set(label, (prevMap.get(label) || 0) + views);
+    }
+    const prevRows = Array.from(prevMap.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([label, views]) => ({
+        dimensionValues: [{ value: label }],
+        metricValues: [{ value: String(views) }],
+      }))
       .filter((r) => !!r.dimensionValues[0].value);
 
     // nextPages: pagePath — rovnou použijeme

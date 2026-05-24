@@ -137,6 +137,9 @@ export default function PagesAnalysis() {
       );
       const data = await res.json();
 
+      // Debug — viditelné v DevTools > Console
+      if (data._debug) console.log("[page-detail debug]", data._debug);
+
       type ApiRow = { dimensionValues: { value: string }[]; metricValues: { value: string }[] };
 
       const summary = data.summary;
@@ -148,19 +151,20 @@ export default function PagesAnalysis() {
         users: parseInt(row.metricValues[2]?.value || "0"),
       }));
 
+      // Server už provádí mapování — dimensionValues[0] = previousPagePath / pagePath
       const prevPages: PathRow[] = (data.prevPages || [])
         .map((row: ApiRow) => ({
           path: row.dimensionValues[0]?.value || "",
           sessions: parseInt(row.metricValues[0]?.value || "0"),
         }))
-        .filter((r: PathRow) => r.path && r.path !== "(entrance)");
+        .filter((r: PathRow) => r.path && r.path !== "(entrance)" && r.path !== "(not set)");
 
       const nextPages: PathRow[] = (data.nextPages || [])
         .map((row: ApiRow) => ({
           path: row.dimensionValues[0]?.value || "",
           sessions: parseInt(row.metricValues[0]?.value || "0"),
         }))
-        .filter((r: PathRow) => r.path && r.path !== "(exit)");
+        .filter((r: PathRow) => r.path && r.path !== "(exit)" && r.path !== "(not set)");
 
       const clicks: ClickRow[] = (data.clicks || [])
         .map((row: ApiRow) => ({

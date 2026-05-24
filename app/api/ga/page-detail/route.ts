@@ -60,37 +60,39 @@ export async function GET(req: NextRequest) {
       }),
 
       // Předchozí stránky — co uživatelé navštívili PŘED touto stránkou
+      // pagePath = aktuální stránka, previousPagePath = odkud přišli
       analyticsData.properties.runReport({
         property: propertyId,
         requestBody: {
           dateRanges: [{ startDate, endDate }],
-          dimensions: [{ name: "previousPagePath" }],
-          metrics: [{ name: "sessions" }],
+          dimensions: [{ name: "pagePath" }, { name: "previousPagePath" }],
+          metrics: [{ name: "screenPageViews" }],
           dimensionFilter: pageFilter,
-          orderBys: [{ metric: { metricName: "sessions" }, desc: true }],
-          limit: "10",
+          orderBys: [{ metric: { metricName: "screenPageViews" }, desc: true }],
+          limit: "11",
         },
       }),
 
       // Následující stránky — kam uživatelé šli PO této stránce
+      // previousPagePath = aktuální stránka, pagePath = kam šli
       analyticsData.properties.runReport({
         property: propertyId,
         requestBody: {
           dateRanges: [{ startDate, endDate }],
-          dimensions: [{ name: "pagePath" }],
-          metrics: [{ name: "sessions" }],
+          dimensions: [{ name: "previousPagePath" }, { name: "pagePath" }],
+          metrics: [{ name: "screenPageViews" }],
           dimensionFilter: {
             filter: {
               fieldName: "previousPagePath",
-              stringFilter: { matchType: "EXACT", value: pagePath },
+              stringFilter: { matchType: "EXACT" as const, value: pagePath },
             },
           },
-          orderBys: [{ metric: { metricName: "sessions" }, desc: true }],
-          limit: "10",
+          orderBys: [{ metric: { metricName: "screenPageViews" }, desc: true }],
+          limit: "11",
         },
       }),
 
-      // Kliknutí — vlastní událost click_custom
+      // Kliknutí — vlastní událost link_click
       analyticsData.properties.runReport({
         property: propertyId,
         requestBody: {
@@ -123,6 +125,9 @@ export async function GET(req: NextRequest) {
     const get = <T>(res: PromiseSettledResult<T>) =>
       res.status === "fulfilled" ? res.value : null;
 
+    const getErr = (res: PromiseSettledResult<unknown>) =>
+      res.status === "rejected" ? String((res.reason as { message?: string })?.message || res.reason) : null;
+
     const sources = get(sourcesRes);
     const summary = get(summaryRes);
     const prevPages = get(prevPagesRes);
@@ -134,18 +139,42 @@ export async function GET(req: NextRequest) {
     if (nextPagesRes.status === "rejected") console.warn("nextPages failed:", nextPagesRes.reason);
     if (clicksRes.status === "rejected") console.warn("link_click failed:", clicksRes.reason);
 
+    // prevPages: dimenze jsou [pagePath, previousPagePath] — bereme index 1 (previousPagePath)
+    const prevRows = (prevPages?.data?.rows || [])
+      .map((row) => ({
+        dimensionValues: [{ value: row.dimensionValues?.[1]?.value || "" }],
+        metricValues: row.metricValues,
+      }))
+      .filter((r) => r.dimensionValues[0].value && r.dimensionValues[0].value !== "(entrance)");
+
+    // nextPages: dimenze jsou [previousPagePath, pagePath] — bereme index 1 (pagePath)
+    const nextRows = (nextPages?.data?.rows || [])
+      .map((row) => ({
+        dimensionValues: [{ value: row.dimensionValues?.[1]?.value || "" }],
+        metricValues: row.metricValues,
+      }))
+      .filter((r) => r.dimensionValues[0].value && r.dimensionValues[0].value !== "(exit)");
+
     return NextResponse.json({
       summary: summary?.data?.rows?.[0] || null,
       sources: sources?.data?.rows || [],
-      prevPages: prevPages?.data?.rows || [],
-      nextPages: nextPages?.data?.rows || [],
+      prevPages: prevRows,
+      nextPages: nextRows,
       clicks: clicks?.data?.rows || [],
-      // Debug info
       _debug: {
         prevPagesStatus: prevPagesRes.status,
+        prevPagesError: getErr(prevPagesRes),
+        prevPagesRawCount: prevPages?.data?.rows?.length ?? 0,
+        prevPagesCount: prevRows.length,
         nextPagesStatus: nextPagesRes.status,
-        prevPagesCount: prevPages?.data?.rows?.length ?? 0,
-        nextPagesCount: nextPages?.data?.rows?.length ?? 0,
+        nextPagesError: getErr(nextPagesRes),
+        nextPagesRawCount: nextPages?.data?.rows?.length ?? 0,
+        nextPagesCount: nextRows.length,
+        clicksStatus: clicksRes.status,
+        clicksError: getErr(clicksRes),
+        pagePath,
+        startDate,
+        endDate,
       },
     });
   } catch (error) {

@@ -150,7 +150,7 @@ export default function PagesAnalysis() {
   return (
     <div className="flex flex-col h-full">
       {/* Top bar */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-white">
+      <div className="flex items-center justify-between px-6 py-4 border-b-2 bg-white" style={{ borderBottomColor: "#e30613" }}>
         <div>
           <h1 className="text-xl font-bold text-gray-900">Analýza stránek</h1>
           {propertyName && <p className="text-sm text-gray-500 mt-0.5">{propertyName}</p>}
@@ -342,12 +342,12 @@ export default function PagesAnalysis() {
 
 function StatCard({ label, value, icon }: { label: string; value: string; icon: string }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-4">
+    <div className="bg-white rounded-xl border border-gray-200 p-4 border-t-2" style={{ borderTopColor: "#e30613" }}>
       <div className="flex items-center gap-2 mb-1">
         <span className="text-lg">{icon}</span>
         <span className="text-xs text-gray-500 font-medium uppercase tracking-wide">{label}</span>
       </div>
-      <p className="text-2xl font-bold text-gray-900">{value}</p>
+      <p className="text-2xl font-bold text-black">{value}</p>
     </div>
   );
 }

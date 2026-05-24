@@ -3,24 +3,29 @@
 import { signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+import Image from "next/image";
 
 function LoginContent() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+    <div className="min-h-screen bg-gray-100 flex items-center justify-center">
       <div className="bg-white rounded-2xl shadow-lg p-10 max-w-md w-full text-center">
-        {/* Logo / Title */}
+        {/* Logo */}
         <div className="mb-8">
-          <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
+          <div className="flex justify-center mb-6">
+            <Image
+              src="https://klimatizace-hustopece.cz/wp-content/uploads/2021/03/Datovy-zdroj-2-300x54.png"
+              alt="Klimatizace Hustopeče"
+              width={220}
+              height={40}
+              className="object-contain"
+              unoptimized
+            />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">KH Dashboard</h1>
-          <p className="text-gray-500 mt-2 text-sm">
+          <div className="w-px h-6 bg-gray-200 mx-auto mb-6" />
+          <p className="text-gray-500 text-sm">
             Analytics přehled pro vaše stránky
           </p>
         </div>
@@ -28,7 +33,7 @@ function LoginContent() {
         {/* Sign in button */}
         <button
           onClick={() => signIn("google", { callbackUrl })}
-          className="w-full flex items-center justify-center gap-3 bg-white border-2 border-gray-200 rounded-xl px-6 py-3.5 text-gray-700 font-medium hover:border-blue-400 hover:bg-blue-50 transition-all duration-200 shadow-sm"
+          className="w-full flex items-center justify-center gap-3 bg-white border-2 border-gray-200 rounded-xl px-6 py-3.5 text-gray-700 font-medium hover:border-gray-400 hover:bg-gray-50 transition-all duration-200 shadow-sm"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24">
             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -49,7 +54,7 @@ function LoginContent() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center" />}>
+    <Suspense fallback={<div className="min-h-screen bg-gray-100 flex items-center justify-center" />}>
       <LoginContent />
     </Suspense>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 
@@ -15,25 +16,25 @@ const navItems = [
       </svg>
     ),
   },
-  // Sem přidáš další záložky v budoucnu
 ];
 
 export default function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="w-64 min-h-screen bg-gray-900 text-white flex flex-col">
+    <aside className="w-64 min-h-screen bg-black text-white flex flex-col">
       {/* Logo */}
-      <div className="px-6 py-5 border-b border-gray-700">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
-            <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
-          </div>
-          <span className="font-semibold text-lg">KH Dashboard</span>
-        </div>
+      <div className="px-6 py-5 border-b border-white/10">
+        <a href="https://klimatizace-hustopece.cz" target="_blank" rel="noopener noreferrer">
+          <Image
+            src="https://klimatizace-hustopece.cz/wp-content/uploads/2021/03/Datovy-zdroj-2-300x54.png"
+            alt="Klimatizace Hustopeče"
+            width={180}
+            height={32}
+            className="object-contain"
+            unoptimized
+          />
+        </a>
       </div>
 
       {/* Navigation */}
@@ -46,9 +47,10 @@ export default function Sidebar() {
               href={item.href}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                 isActive
-                  ? "bg-blue-600 text-white"
-                  : "text-gray-400 hover:bg-gray-800 hover:text-white"
+                  ? "text-white"
+                  : "text-white/50 hover:bg-white/10 hover:text-white"
               }`}
+              style={isActive ? { backgroundColor: "#e30613" } : {}}
             >
               {item.icon}
               {item.label}
@@ -58,10 +60,10 @@ export default function Sidebar() {
       </nav>
 
       {/* Sign out */}
-      <div className="px-3 py-4 border-t border-gray-700">
+      <div className="px-3 py-4 border-t border-white/10">
         <button
           onClick={() => signOut({ callbackUrl: "/login" })}
-          className="flex items-center gap-3 px-3 py-2.5 w-full rounded-lg text-sm font-medium text-gray-400 hover:bg-gray-800 hover:text-white transition-colors"
+          className="flex items-center gap-3 px-3 py-2.5 w-full rounded-lg text-sm font-medium text-white/50 hover:bg-white/10 hover:text-white transition-colors"
         >
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}

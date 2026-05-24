@@ -101,6 +101,7 @@ export default function PagesAnalysis() {
   const [selectedPage, setSelectedPage] = useState<PageRow | null>(null);
   const [pageDetail, setPageDetail] = useState<PageDetail | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
+  const [journeyDebug, setJourneyDebug] = useState<Record<string, unknown> | null>(null);
   const [search, setSearch] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [sortBy, setSortBy] = useState<GaSortKey>("views");
@@ -169,8 +170,11 @@ export default function PagesAnalysis() {
       );
       const data = await res.json();
 
-      // Debug — viditelné v DevTools > Console
-      if (data._debug) console.log("[page-detail debug]", data._debug);
+      // Debug — viditelné v DevTools > Console i v UI
+      if (data._debug) {
+        console.log("[page-detail debug]", data._debug);
+        setJourneyDebug(data._debug);
+      }
 
       type ApiRow = { dimensionValues: { value: string }[]; metricValues: { value: string }[] };
 
@@ -189,14 +193,16 @@ export default function PagesAnalysis() {
           path: row.dimensionValues[0]?.value || "",
           sessions: parseInt(row.metricValues[0]?.value || "0"),
         }))
-        .filter((r: PathRow) => r.path && r.path !== "(entrance)" && r.path !== "(not set)");
+        .filter((r: PathRow) => !!r.path && r.path !== "(not set)");
+        // (entrance) = přišel z vyhledávače/odkazu — necháme, je to info
 
       const nextPages: PathRow[] = (data.nextPages || [])
         .map((row: ApiRow) => ({
           path: row.dimensionValues[0]?.value || "",
           sessions: parseInt(row.metricValues[0]?.value || "0"),
         }))
-        .filter((r: PathRow) => r.path && r.path !== "(exit)" && r.path !== "(not set)");
+        .filter((r: PathRow) => !!r.path && r.path !== "(not set)");
+        // (exit) = opustil web — necháme, je to info
 
       // Kliknutí — strip UTM parametrů + seskup stejné URL
       const clickMap = new Map<string, ClickRow>();
@@ -470,6 +476,15 @@ export default function PagesAnalysis() {
                 {/* Cesta uživatele */}
                 <div className="mb-8">
                   <h3 className="text-base font-semibold text-gray-800 mb-4">Cesta uživatele</h3>
+
+                  {/* Debug panel — zobrazí se pouze pokud jsou chyby nebo nulová data */}
+                  {journeyDebug && (journeyDebug.prevPagesStatus === "rejected" || journeyDebug.nextPagesStatus === "rejected") && (
+                    <div className="mb-3 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700 font-mono">
+                      {journeyDebug.prevPagesError ? <div>prevPages chyba: {String(journeyDebug.prevPagesError)}</div> : null}
+                      {journeyDebug.nextPagesError ? <div>nextPages chyba: {String(journeyDebug.nextPagesError)}</div> : null}
+                    </div>
+                  )}
+
                   <div className="flex gap-3 items-start">
                     {/* Předchozí stránky */}
                     <div className="flex-1 bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -479,12 +494,19 @@ export default function PagesAnalysis() {
                       {pageDetail.prevPages.length === 0 ? (
                         <p className="text-sm text-gray-400 px-4 py-3">Žádná data</p>
                       ) : (
-                        pageDetail.prevPages.map((r, i) => (
-                          <div key={i} className="flex items-center justify-between px-4 py-2.5 border-b border-gray-50 hover:bg-gray-50">
-                            <span className="text-sm text-gray-700 truncate font-mono" title={r.path}>{r.path}</span>
-                            <span className="text-xs text-gray-400 ml-2 flex-shrink-0">{formatNumber(r.sessions)}×</span>
-                          </div>
-                        ))
+                        pageDetail.prevPages.map((r, i) => {
+                          const isEntrance = r.path === "(entrance)";
+                          return (
+                            <div key={i} className="flex items-center justify-between px-4 py-2.5 border-b border-gray-50 hover:bg-gray-50">
+                              {isEntrance ? (
+                                <span className="text-sm text-blue-600 italic">↗ Přímý vstup (Google / odkaz)</span>
+                              ) : (
+                                <span className="text-sm text-gray-700 truncate font-mono" title={r.path}>{r.path}</span>
+                              )}
+                              <span className="text-xs text-gray-400 ml-2 flex-shrink-0">{formatNumber(r.sessions)}×</span>
+                            </div>
+                          );
+                        })
                       )}
                     </div>
 
@@ -505,12 +527,19 @@ export default function PagesAnalysis() {
                       {pageDetail.nextPages.length === 0 ? (
                         <p className="text-sm text-gray-400 px-4 py-3">Žádná data</p>
                       ) : (
-                        pageDetail.nextPages.map((r, i) => (
-                          <div key={i} className="flex items-center justify-between px-4 py-2.5 border-b border-gray-50 hover:bg-gray-50">
-                            <span className="text-sm text-gray-700 truncate font-mono" title={r.path}>{r.path}</span>
-                            <span className="text-xs text-gray-400 ml-2 flex-shrink-0">{formatNumber(r.sessions)}×</span>
-                          </div>
-                        ))
+                        pageDetail.nextPages.map((r, i) => {
+                          const isExit = r.path === "(exit)";
+                          return (
+                            <div key={i} className="flex items-center justify-between px-4 py-2.5 border-b border-gray-50 hover:bg-gray-50">
+                              {isExit ? (
+                                <span className="text-sm text-red-500 italic">✕ Opustili web</span>
+                              ) : (
+                                <span className="text-sm text-gray-700 truncate font-mono" title={r.path}>{r.path}</span>
+                              )}
+                              <span className="text-xs text-gray-400 ml-2 flex-shrink-0">{formatNumber(r.sessions)}×</span>
+                            </div>
+                          );
+                        })
                       )}
                     </div>
                   </div>

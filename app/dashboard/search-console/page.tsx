@@ -32,13 +32,30 @@ function fmt(n: number, dec = 0) {
 function fmtPct(n: number) { return (n * 100).toFixed(1) + " %"; }
 function fmtPos(n: number) { return n.toFixed(1); }
 
-function ScCard({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: string }) {
+function ScCard({ label, value, sub, color, active, onClick, sortAsc }: {
+  label: string; value: string; sub?: string; color?: string;
+  active?: boolean; onClick?: () => void; sortAsc?: boolean;
+}) {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-4 border-t-2" style={{ borderTopColor: color || "#e30613" }}>
-      <p className="text-xs text-gray-500 font-medium uppercase tracking-wide mb-1">{label}</p>
+    <button
+      onClick={onClick}
+      className={`bg-white rounded-xl border p-4 border-t-2 text-left w-full transition-all ${
+        active ? "ring-2 ring-offset-1 shadow-md" : "border-gray-200 hover:shadow-sm"
+      }`}
+      style={{ borderTopColor: color || "#e30613", ...(active ? { ringColor: color || "#e30613" } : {}) }}
+    >
+      <div className="flex items-center justify-between mb-1">
+        <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">{label}</p>
+        {active && (
+          <svg className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+              d={sortAsc ? "M5 15l7-7 7 7" : "M19 9l-7 7-7-7"} />
+          </svg>
+        )}
+      </div>
       <p className="text-2xl font-bold text-black">{value}</p>
       {sub && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
-    </div>
+    </button>
   );
 }
 
@@ -57,6 +74,8 @@ export default function SearchConsolePage() {
   const [loadingPage, setLoadingPage] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [search, setSearch] = useState("");
+  type SortKey = "clicks" | "impressions" | "ctr" | "position";
+  const [sortBy, setSortBy] = useState<SortKey>("clicks");
 
   // Načíst seznam webů a vybrat správný
   useEffect(() => {
@@ -116,9 +135,17 @@ export default function SearchConsolePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dateRange]);
 
-  const filteredPages = (overview?.pages ?? []).filter((p) =>
-    (p.keys?.[0] ?? "").toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredPages = (overview?.pages ?? [])
+    .filter((p) => (p.keys?.[0] ?? "").toLowerCase().includes(search.toLowerCase()))
+    .sort((a, b) =>
+      sortBy === "position"
+        ? (a.position ?? 0) - (b.position ?? 0)        // vzestupně (1 je nejlepší)
+        : sortBy === "ctr"
+        ? (b.ctr ?? 0) - (a.ctr ?? 0)                  // sestupně
+        : sortBy === "impressions"
+        ? (b.impressions ?? 0) - (a.impressions ?? 0)  // sestupně
+        : (b.clicks ?? 0) - (a.clicks ?? 0)            // sestupně (výchozí)
+    );
 
   return (
     <div className="flex flex-col h-full">
@@ -141,13 +168,23 @@ export default function SearchConsolePage() {
         </div>
       ) : overview ? (
         <div className="flex flex-col flex-1 overflow-hidden">
-          {/* Celkové KPI */}
+          {/* Celkové KPI — kliknutím seřadíš stránky */}
           <div className="px-6 py-4 border-b border-gray-200 bg-white">
+            <p className="text-xs text-gray-400 mb-2">Kliknutím na kartu seřadíš stránky vlevo</p>
             <div className="grid grid-cols-4 gap-4">
-              <ScCard label="Kliky" value={fmt(overview.summary?.clicks ?? 0)} />
-              <ScCard label="Zobrazení" value={fmt(overview.summary?.impressions ?? 0)} color="#1a1a1a" />
-              <ScCard label="Průměrná CTR" value={fmtPct(overview.summary?.ctr ?? 0)} color="#374151" />
-              <ScCard label="Průměrná pozice" value={fmtPos(overview.summary?.position ?? 0)} sub="čím nižší, tím lepší" color="#6b7280" />
+              <ScCard label="Kliky" value={fmt(overview.summary?.clicks ?? 0)}
+                active={sortBy === "clicks"} sortAsc={false}
+                onClick={() => setSortBy("clicks")} />
+              <ScCard label="Zobrazení" value={fmt(overview.summary?.impressions ?? 0)} color="#1a1a1a"
+                active={sortBy === "impressions"} sortAsc={false}
+                onClick={() => setSortBy("impressions")} />
+              <ScCard label="Průměrná CTR" value={fmtPct(overview.summary?.ctr ?? 0)} color="#374151"
+                active={sortBy === "ctr"} sortAsc={false}
+                onClick={() => setSortBy("ctr")} />
+              <ScCard label="Průměrná pozice" value={fmtPos(overview.summary?.position ?? 0)}
+                sub="čím nižší, tím lepší" color="#6b7280"
+                active={sortBy === "position"} sortAsc={true}
+                onClick={() => setSortBy("position")} />
             </div>
           </div>
 

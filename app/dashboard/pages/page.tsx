@@ -5,6 +5,8 @@ import { useState, useEffect, useCallback } from "react";
 import PropertySelector from "@/components/PropertySelector";
 import DateRangePicker, { DateRange, getDefaultRange } from "@/components/DateRangePicker";
 
+type GaSortKey = "views" | "sessions" | "users" | "avgDuration" | "bounceRate";
+
 interface PageRow {
   pagePath: string;
   pageTitle: string;
@@ -53,6 +55,7 @@ export default function PagesAnalysis() {
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [search, setSearch] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sortBy, setSortBy] = useState<GaSortKey>("views");
 
   const accessToken = (session as { accessToken?: string })?.accessToken;
 
@@ -141,11 +144,18 @@ export default function PagesAnalysis() {
     }
   }, [accessToken, selectedProperty, dateRange]);
 
-  const filteredPages = pages.filter(
-    (p) =>
-      p.pagePath.toLowerCase().includes(search.toLowerCase()) ||
-      p.pageTitle.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredPages = pages
+    .filter(
+      (p) =>
+        p.pagePath.toLowerCase().includes(search.toLowerCase()) ||
+        p.pageTitle.toLowerCase().includes(search.toLowerCase())
+    )
+    .sort((a, b) => {
+      if (sortBy === "bounceRate" || sortBy === "avgDuration") {
+        return a[sortBy] - b[sortBy]; // vzestupně (nižší odchod / kratší doba = lepší)
+      }
+      return b[sortBy] - a[sortBy]; // sestupně
+    });
 
   return (
     <div className="flex flex-col h-full">
@@ -210,6 +220,36 @@ export default function PagesAnalysis() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                   </svg>
                 </button>
+              </div>
+
+              {/* Sort pills */}
+              <div className="px-3 py-2 border-b border-gray-200 flex flex-wrap gap-1">
+                {([
+                  { key: "views", label: "Zobrazení", asc: false },
+                  { key: "sessions", label: "Relace", asc: false },
+                  { key: "users", label: "Uživatelé", asc: false },
+                  { key: "avgDuration", label: "Doba", asc: true },
+                  { key: "bounceRate", label: "Odchod", asc: true },
+                ] as { key: GaSortKey; label: string; asc: boolean }[]).map(({ key, label, asc }) => (
+                  <button
+                    key={key}
+                    onClick={() => setSortBy(key)}
+                    className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors ${
+                      sortBy === key
+                        ? "text-white"
+                        : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                    }`}
+                    style={sortBy === key ? { backgroundColor: "#e30613" } : {}}
+                  >
+                    {label}
+                    {sortBy === key && (
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                          d={asc ? "M5 15l7-7 7 7" : "M19 9l-7 7-7-7"} />
+                      </svg>
+                    )}
+                  </button>
+                ))}
               </div>
 
               <div className="flex-1 overflow-y-auto">

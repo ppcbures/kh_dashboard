@@ -156,15 +156,18 @@ export default function PagesAnalysis() {
           {propertyName && <p className="text-sm text-gray-500 mt-0.5">{propertyName}</p>}
         </div>
         <div className="flex items-center gap-4">
-          {accessToken && (
-            <PropertySelector
-              accessToken={accessToken}
-              selectedProperty={selectedProperty}
-              onSelect={(id, name) => {
-                setSelectedProperty(id);
-                setPropertyName(name);
-              }}
-            />
+          {/* PropertySelector skrytý — auto-selectuje jedinou property na pozadí */}
+          {accessToken && !selectedProperty && (
+            <div className="hidden">
+              <PropertySelector
+                accessToken={accessToken}
+                selectedProperty={selectedProperty}
+                onSelect={(id, name) => {
+                  setSelectedProperty(id);
+                  setPropertyName(name);
+                }}
+              />
+            </div>
           )}
           <DateRangePicker value={dateRange} onChange={setDateRange} />
         </div>

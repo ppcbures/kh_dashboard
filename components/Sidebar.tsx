@@ -24,16 +24,18 @@ export default function Sidebar() {
   return (
     <aside className="w-64 min-h-screen bg-black text-white flex flex-col">
       {/* Logo */}
-      <div className="px-6 py-5 border-b border-white/10">
+      <div className="px-4 py-4 border-b border-white/10">
         <a href="https://klimatizace-hustopece.cz" target="_blank" rel="noopener noreferrer">
-          <Image
-            src="https://klimatizace-hustopece.cz/wp-content/uploads/2021/03/Datovy-zdroj-2-300x54.png"
-            alt="Klimatizace Hustopeče"
-            width={180}
-            height={32}
-            className="object-contain"
-            unoptimized
-          />
+          <div className="bg-white rounded-lg px-3 py-2 flex items-center justify-center">
+            <Image
+              src="https://klimatizace-hustopece.cz/wp-content/uploads/2021/03/Datovy-zdroj-2-300x54.png"
+              alt="Klimatizace Hustopeče"
+              width={180}
+              height={32}
+              className="object-contain"
+              unoptimized
+            />
+          </div>
         </a>
       </div>
 

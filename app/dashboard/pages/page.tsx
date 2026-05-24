@@ -613,8 +613,8 @@ export default function PagesAnalysis() {
                                       {/* eslint-disable-next-line @next/next/no-img-element */}
                                       <img src={thumbUrl!} alt="" className="h-8 w-12 object-cover rounded border border-gray-200 flex-shrink-0"
                                         onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
-                                      <span className="text-blue-600 group-hover:underline text-xs font-mono break-all">
-                                        🖼 {imgFilename(c.clickUrl || thumbUrl!)}
+                                      <span className="text-blue-600 group-hover:underline text-sm">
+                                        🖼 Obrázek
                                       </span>
                                     </a>
                                   ) : (

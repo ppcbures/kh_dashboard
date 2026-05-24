@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
       },
     };
 
-    const [sourcesRes, summaryRes, prevPagesRes, nextPagesRes, clicksRes] = await Promise.all([
+    const [sourcesRes, summaryRes, prevPagesRes, nextPagesRes, clicksRes] = await Promise.allSettled([
 
       // Zdroje / média
       analyticsData.properties.runReport({
@@ -119,12 +119,26 @@ export async function GET(req: NextRequest) {
       }),
     ]);
 
+    // Promise.allSettled — selhání jednoho dotazu nerozbije ostatní
+    const get = <T>(res: PromiseSettledResult<T>) =>
+      res.status === "fulfilled" ? res.value : null;
+
+    const sources = get(sourcesRes);
+    const summary = get(summaryRes);
+    const prevPages = get(prevPagesRes);
+    const nextPages = get(nextPagesRes);
+    const clicks = get(clicksRes);
+
+    if (clicksRes.status === "rejected") {
+      console.warn("click_custom query failed (custom dimensions pravdepodobne nejsou registrovany v GA4):", clicksRes.reason);
+    }
+
     return NextResponse.json({
-      summary: summaryRes.data.rows?.[0] || null,
-      sources: sourcesRes.data.rows || [],
-      prevPages: prevPagesRes.data.rows || [],
-      nextPages: nextPagesRes.data.rows || [],
-      clicks: clicksRes.data.rows || [],
+      summary: summary?.data?.rows?.[0] || null,
+      sources: sources?.data?.rows || [],
+      prevPages: prevPages?.data?.rows || [],
+      nextPages: nextPages?.data?.rows || [],
+      clicks: clicks?.data?.rows || [],
     });
   } catch (error) {
     console.error("GA page-detail error:", error);

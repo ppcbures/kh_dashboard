@@ -118,6 +118,18 @@ function extractImgSrc(text: string): string | null {
   return null;
 }
 
+/** Vrátí true pokud URL/cesta vede na obrázek nebo je wp-content upload */
+function isImagePath(url: string): boolean {
+  if (!url) return false;
+  return IMG_EXT.test(url) || url.includes("/wp-content/uploads/") || url.includes("/wp-includes/");
+}
+
+/** Vrátí pouze název souboru z cesty */
+function imgFilename(url: string): string {
+  const parts = url.split("/").filter(Boolean);
+  return parts[parts.length - 1] || url;
+}
+
 export default function PagesAnalysis() {
   const { data: session } = useSession();
   const [selectedProperty, setSelectedProperty] = useState<string | null>(null);
@@ -582,31 +594,51 @@ export default function PagesAnalysis() {
                         </thead>
                         <tbody>
                           {pageDetail.clicks.map((c, i) => {
-                            const imgSrc = extractImgSrc(c.clickText);
+                            // Zjistit zda click_text nebo click_url odkazuje na obrázek
+                            const urlIsImage = isImagePath(c.clickUrl);
+                            const textImgSrc = extractImgSrc(c.clickText);
+                            // Preferovat click_url jako zdroj náhledu pokud je to obrázek (je méně oříznutý)
+                            const thumbUrl = urlIsImage
+                              ? (c.clickUrl.startsWith("/") ? `${SITE_ORIGIN}${c.clickUrl}` : c.clickUrl)
+                              : textImgSrc;
+                            const isImg = !!thumbUrl;
+
                             return (
                               <tr key={i} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                                {/* Text kliknutí — pokud je to img tag, ukáž klikatelný náhled */}
+                                {/* Text kliknutí */}
                                 <td className="px-4 py-3 text-gray-800 font-medium max-w-xs">
-                                  {imgSrc ? (
-                                    <a href={imgSrc} target="_blank" rel="noopener noreferrer"
-                                      className="flex items-center gap-2 group"
-                                      title={imgSrc}>
+                                  {isImg ? (
+                                    <a href={thumbUrl!} target="_blank" rel="noopener noreferrer"
+                                      className="flex items-center gap-2 group" title={thumbUrl!}>
                                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                                      <img src={imgSrc} alt="" className="h-8 w-12 object-cover rounded border border-gray-200 flex-shrink-0" onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
-                                      <span className="text-blue-600 group-hover:underline text-xs font-mono break-all">{imgSrc.replace(/^https?:\/\/[^/]+/, "") || imgSrc}</span>
+                                      <img src={thumbUrl!} alt="" className="h-8 w-12 object-cover rounded border border-gray-200 flex-shrink-0"
+                                        onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                                      <span className="text-blue-600 group-hover:underline text-xs font-mono break-all">
+                                        🖼 {imgFilename(c.clickUrl || thumbUrl!)}
+                                      </span>
                                     </a>
                                   ) : (
                                     <span className="break-words">{c.clickText}</span>
                                   )}
                                 </td>
-                                {/* Cílová URL — plná (UTM odstraněny) */}
+                                {/* Cílová URL — pokud je to obrázek, ukáž jinak */}
                                 <td className="px-4 py-3">
                                   {c.clickUrl ? (
-                                    <a href={c.clickUrl} target="_blank" rel="noopener noreferrer"
-                                      className="text-blue-600 hover:underline text-xs font-mono break-all"
-                                      title={c.clickUrl}>
-                                      {c.clickUrl.replace(/^https?:\/\/[^/]+/, "") || c.clickUrl}
-                                    </a>
+                                    urlIsImage ? (
+                                      // Obrázek — odkaz na soubor, zobrazit jako "📂 název"
+                                      <a href={c.clickUrl.startsWith("/") ? `${SITE_ORIGIN}${c.clickUrl}` : c.clickUrl}
+                                        target="_blank" rel="noopener noreferrer"
+                                        className="text-gray-500 hover:underline text-xs font-mono break-all italic"
+                                        title={c.clickUrl}>
+                                        soubor: {imgFilename(c.clickUrl)}
+                                      </a>
+                                    ) : (
+                                      <a href={c.clickUrl} target="_blank" rel="noopener noreferrer"
+                                        className="text-blue-600 hover:underline text-xs font-mono break-all"
+                                        title={c.clickUrl}>
+                                        {c.clickUrl.replace(/^https?:\/\/[^/]+/, "") || c.clickUrl}
+                                      </a>
+                                    )
                                   ) : (
                                     <span className="text-gray-400 text-xs">—</span>
                                   )}

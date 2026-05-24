@@ -17,62 +17,114 @@ export async function GET(req: NextRequest) {
   try {
     const auth = new google.auth.OAuth2();
     auth.setCredentials({ access_token: accessToken });
-
     const analyticsData = google.analyticsdata({ version: "v1beta", auth });
 
-    // Detail konkrétní stránky — zdroje/média
-    const sourcesRes = await analyticsData.properties.runReport({
-      property: propertyId,
-      requestBody: {
-        dateRanges: [{ startDate, endDate }],
-        dimensions: [
-          { name: "pagePath" },
-          { name: "sessionSourceMedium" },
-        ],
-        metrics: [
-          { name: "sessions" },
-          { name: "screenPageViews" },
-          { name: "totalUsers" },
-        ],
-        dimensionFilter: {
-          filter: {
-            fieldName: "pagePath",
-            stringFilter: { matchType: "EXACT", value: pagePath },
-          },
-        },
-        orderBys: [{ metric: { metricName: "sessions" }, desc: true }],
-        limit: "20",
+    const pageFilter = {
+      filter: {
+        fieldName: "pagePath",
+        stringFilter: { matchType: "EXACT" as const, value: pagePath },
       },
-    });
+    };
 
-    // Souhrnné metriky pro stránku
-    const summaryRes = await analyticsData.properties.runReport({
-      property: propertyId,
-      requestBody: {
-        dateRanges: [{ startDate, endDate }],
-        dimensions: [{ name: "pagePath" }],
-        metrics: [
-          { name: "screenPageViews" },
-          { name: "averageSessionDuration" },
-          { name: "bounceRate" },
-          { name: "sessions" },
-          { name: "totalUsers" },
-          { name: "userEngagementDuration" },
-        ],
-        dimensionFilter: {
-          filter: {
-            fieldName: "pagePath",
-            stringFilter: { matchType: "EXACT", value: pagePath },
-          },
+    const [sourcesRes, summaryRes, prevPagesRes, nextPagesRes, clicksRes] = await Promise.all([
+
+      // Zdroje / média
+      analyticsData.properties.runReport({
+        property: propertyId,
+        requestBody: {
+          dateRanges: [{ startDate, endDate }],
+          dimensions: [{ name: "pagePath" }, { name: "sessionSourceMedium" }],
+          metrics: [{ name: "sessions" }, { name: "screenPageViews" }, { name: "totalUsers" }],
+          dimensionFilter: pageFilter,
+          orderBys: [{ metric: { metricName: "sessions" }, desc: true }],
+          limit: "20",
         },
-      },
-    });
+      }),
+
+      // Souhrnné metriky
+      analyticsData.properties.runReport({
+        property: propertyId,
+        requestBody: {
+          dateRanges: [{ startDate, endDate }],
+          dimensions: [{ name: "pagePath" }],
+          metrics: [
+            { name: "screenPageViews" },
+            { name: "averageSessionDuration" },
+            { name: "bounceRate" },
+            { name: "sessions" },
+            { name: "totalUsers" },
+            { name: "userEngagementDuration" },
+          ],
+          dimensionFilter: pageFilter,
+        },
+      }),
+
+      // Předchozí stránky — co uživatelé navštívili PŘED touto stránkou
+      analyticsData.properties.runReport({
+        property: propertyId,
+        requestBody: {
+          dateRanges: [{ startDate, endDate }],
+          dimensions: [{ name: "previousPagePath" }],
+          metrics: [{ name: "sessions" }],
+          dimensionFilter: pageFilter,
+          orderBys: [{ metric: { metricName: "sessions" }, desc: true }],
+          limit: "10",
+        },
+      }),
+
+      // Následující stránky — kam uživatelé šli PO této stránce
+      analyticsData.properties.runReport({
+        property: propertyId,
+        requestBody: {
+          dateRanges: [{ startDate, endDate }],
+          dimensions: [{ name: "pagePath" }],
+          metrics: [{ name: "sessions" }],
+          dimensionFilter: {
+            filter: {
+              fieldName: "previousPagePath",
+              stringFilter: { matchType: "EXACT", value: pagePath },
+            },
+          },
+          orderBys: [{ metric: { metricName: "sessions" }, desc: true }],
+          limit: "10",
+        },
+      }),
+
+      // Kliknutí — vlastní událost click_custom
+      analyticsData.properties.runReport({
+        property: propertyId,
+        requestBody: {
+          dateRanges: [{ startDate, endDate }],
+          dimensions: [
+            { name: "customEvent:click_text" },
+            { name: "customEvent:click_url" },
+          ],
+          metrics: [{ name: "eventCount" }],
+          dimensionFilter: {
+            andGroup: {
+              expressions: [
+                {
+                  filter: {
+                    fieldName: "eventName",
+                    stringFilter: { matchType: "EXACT", value: "click_custom" },
+                  },
+                },
+                pageFilter,
+              ],
+            },
+          },
+          orderBys: [{ metric: { metricName: "eventCount" }, desc: true }],
+          limit: "20",
+        },
+      }),
+    ]);
 
     return NextResponse.json({
-      sources: sourcesRes.data.rows || [],
       summary: summaryRes.data.rows?.[0] || null,
-      sourceHeaders: sourcesRes.data.metricHeaders,
-      summaryHeaders: summaryRes.data.metricHeaders,
+      sources: sourcesRes.data.rows || [],
+      prevPages: prevPagesRes.data.rows || [],
+      nextPages: nextPagesRes.data.rows || [],
+      clicks: clicksRes.data.rows || [],
     });
   } catch (error) {
     console.error("GA page-detail error:", error);

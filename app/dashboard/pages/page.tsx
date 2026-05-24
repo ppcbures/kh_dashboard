@@ -24,6 +24,17 @@ interface SourceRow {
   users: number;
 }
 
+interface PathRow {
+  path: string;
+  sessions: number;
+}
+
+interface ClickRow {
+  clickText: string;
+  clickUrl: string;
+  count: number;
+}
+
 interface PageDetail {
   views: number;
   sessions: number;
@@ -31,6 +42,9 @@ interface PageDetail {
   avgDuration: number;
   bounceRate: number;
   sources: SourceRow[];
+  prevPages: PathRow[];
+  nextPages: PathRow[];
+  clicks: ClickRow[];
 }
 
 function formatDuration(seconds: number): string {
@@ -121,13 +135,38 @@ export default function PagesAnalysis() {
       );
       const data = await res.json();
 
+      type ApiRow = { dimensionValues: { value: string }[]; metricValues: { value: string }[] };
+
       const summary = data.summary;
-      const sources: SourceRow[] = (data.sources || []).map((row: { dimensionValues: { value: string }[]; metricValues: { value: string }[] }) => ({
+
+      const sources: SourceRow[] = (data.sources || []).map((row: ApiRow) => ({
         sourceMedium: row.dimensionValues[1]?.value || "unknown",
         sessions: parseInt(row.metricValues[0]?.value || "0"),
         views: parseInt(row.metricValues[1]?.value || "0"),
         users: parseInt(row.metricValues[2]?.value || "0"),
       }));
+
+      const prevPages: PathRow[] = (data.prevPages || [])
+        .map((row: ApiRow) => ({
+          path: row.dimensionValues[0]?.value || "",
+          sessions: parseInt(row.metricValues[0]?.value || "0"),
+        }))
+        .filter((r: PathRow) => r.path && r.path !== "(entrance)");
+
+      const nextPages: PathRow[] = (data.nextPages || [])
+        .map((row: ApiRow) => ({
+          path: row.dimensionValues[0]?.value || "",
+          sessions: parseInt(row.metricValues[0]?.value || "0"),
+        }))
+        .filter((r: PathRow) => r.path && r.path !== "(exit)");
+
+      const clicks: ClickRow[] = (data.clicks || [])
+        .map((row: ApiRow) => ({
+          clickText: row.dimensionValues[0]?.value || "(nezjištěno)",
+          clickUrl: row.dimensionValues[1]?.value || "",
+          count: parseInt(row.metricValues[0]?.value || "0"),
+        }))
+        .filter((r: ClickRow) => r.clickText !== "(not set)");
 
       setPageDetail({
         views: parseInt(summary?.metricValues[0]?.value || "0"),
@@ -136,6 +175,9 @@ export default function PagesAnalysis() {
         sessions: parseInt(summary?.metricValues[3]?.value || "0"),
         users: parseInt(summary?.metricValues[4]?.value || "0"),
         sources,
+        prevPages,
+        nextPages,
+        clicks,
       });
     } catch (err) {
       console.error(err);
@@ -374,6 +416,92 @@ export default function PagesAnalysis() {
                     </div>
                   )}
                 </div>
+
+                {/* Cesta uživatele */}
+                <div className="mb-8">
+                  <h3 className="text-base font-semibold text-gray-800 mb-4">Cesta uživatele</h3>
+                  <div className="flex gap-3 items-start">
+                    {/* Předchozí stránky */}
+                    <div className="flex-1 bg-white rounded-xl border border-gray-200 overflow-hidden">
+                      <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
+                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">← Odkud přišli</p>
+                      </div>
+                      {pageDetail.prevPages.length === 0 ? (
+                        <p className="text-sm text-gray-400 px-4 py-3">Žádná data</p>
+                      ) : (
+                        pageDetail.prevPages.map((r, i) => (
+                          <div key={i} className="flex items-center justify-between px-4 py-2.5 border-b border-gray-50 hover:bg-gray-50">
+                            <span className="text-sm text-gray-700 truncate font-mono" title={r.path}>{r.path}</span>
+                            <span className="text-xs text-gray-400 ml-2 flex-shrink-0">{formatNumber(r.sessions)}×</span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+
+                    {/* Analyzovaná stránka uprostřed */}
+                    <div className="flex flex-col items-center justify-center gap-1 pt-8">
+                      <div className="w-px h-4 bg-gray-300" />
+                      <div className="bg-black text-white text-xs font-mono px-3 py-2 rounded-lg text-center max-w-[120px] break-all">
+                        {selectedPage.pagePath}
+                      </div>
+                      <div className="w-px h-4 bg-gray-300" />
+                    </div>
+
+                    {/* Následující stránky */}
+                    <div className="flex-1 bg-white rounded-xl border border-gray-200 overflow-hidden">
+                      <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
+                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Kam šli dál →</p>
+                      </div>
+                      {pageDetail.nextPages.length === 0 ? (
+                        <p className="text-sm text-gray-400 px-4 py-3">Žádná data</p>
+                      ) : (
+                        pageDetail.nextPages.map((r, i) => (
+                          <div key={i} className="flex items-center justify-between px-4 py-2.5 border-b border-gray-50 hover:bg-gray-50">
+                            <span className="text-sm text-gray-700 truncate font-mono" title={r.path}>{r.path}</span>
+                            <span className="text-xs text-gray-400 ml-2 flex-shrink-0">{formatNumber(r.sessions)}×</span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Kliknutí na stránce */}
+                {pageDetail.clicks.length > 0 && (
+                  <div className="mb-8">
+                    <h3 className="text-base font-semibold text-gray-800 mb-3">Na co klikali</h3>
+                    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="bg-gray-50 border-b border-gray-200">
+                            <th className="text-left px-4 py-3 text-gray-600 font-semibold">Text kliknutí</th>
+                            <th className="text-left px-4 py-3 text-gray-600 font-semibold">Cílová URL</th>
+                            <th className="text-right px-4 py-3 text-gray-600 font-semibold">Počet</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {pageDetail.clicks.map((c, i) => (
+                            <tr key={i} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                              <td className="px-4 py-3 text-gray-800 font-medium">{c.clickText}</td>
+                              <td className="px-4 py-3">
+                                {c.clickUrl ? (
+                                  <a href={c.clickUrl} target="_blank" rel="noopener noreferrer"
+                                    className="text-blue-600 hover:underline text-xs font-mono truncate block max-w-[200px]"
+                                    title={c.clickUrl}>
+                                    {c.clickUrl}
+                                  </a>
+                                ) : (
+                                  <span className="text-gray-400 text-xs">—</span>
+                                )}
+                              </td>
+                              <td className="px-4 py-3 text-right text-gray-800 font-semibold">{formatNumber(c.count)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : null}
           </div>

@@ -3,6 +3,15 @@ import { google } from "googleapis";
 
 const SITE_ORIGIN = process.env.NEXT_PUBLIC_SITE_ORIGIN || "https://klimatizace-hustopece.cz";
 
+/** Převede pageReferrer na interní cestu nebo "(entrance)" */
+function referrerToPath(referrer: string): string {
+  if (!referrer || referrer === "(direct)") return "(entrance)";
+  if (referrer.startsWith(SITE_ORIGIN)) {
+    try { return new URL(referrer).pathname; } catch { return referrer.replace(SITE_ORIGIN, ""); }
+  }
+  return "(entrance)"; // vše externe seskupíme
+}
+
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("Authorization");
   const accessToken = authHeader?.replace("Bearer ", "");
@@ -28,6 +37,7 @@ export async function GET(req: NextRequest) {
       },
     };
 
+    // ── Fáze 1: hlavní dotazy ────────────────────────────────────────────────
     const [sourcesRes, summaryRes, prevPagesRes, nextPagesRes, clicksRes] = await Promise.allSettled([
 
       // Zdroje / média
@@ -61,8 +71,7 @@ export async function GET(req: NextRequest) {
         },
       }),
 
-      // Předchozí stránky — pageReferrer při zobrazení aktuální stránky
-      // (interní = cesta na webu, externí = doména, prázdné = přímý vstup)
+      // B stránky — pageReferrer při zobrazení aktuální stránky C
       analyticsData.properties.runReport({
         property: propertyId,
         requestBody: {
@@ -71,7 +80,7 @@ export async function GET(req: NextRequest) {
           metrics: [{ name: "screenPageViews" }],
           dimensionFilter: pageFilter,
           orderBys: [{ metric: { metricName: "screenPageViews" }, desc: true }],
-          limit: "15",
+          limit: "20",
         },
       }),
 
@@ -122,49 +131,92 @@ export async function GET(req: NextRequest) {
       }),
     ]);
 
-    // Promise.allSettled — selhání jednoho dotazu nerozbije ostatní
     const get = <T>(res: PromiseSettledResult<T>) =>
       res.status === "fulfilled" ? res.value : null;
-
     const getErr = (res: PromiseSettledResult<unknown>) =>
       res.status === "rejected" ? String((res.reason as { message?: string })?.message || res.reason) : null;
 
     const sources = get(sourcesRes);
     const summary = get(summaryRes);
-    const prevPages = get(prevPagesRes);
+    const prevPagesRaw = get(prevPagesRes);
     const nextPages = get(nextPagesRes);
     const clicks = get(clicksRes);
 
-    // Logovat chyby pro debugging
     if (prevPagesRes.status === "rejected") console.warn("prevPages failed:", prevPagesRes.reason);
     if (nextPagesRes.status === "rejected") console.warn("nextPages failed:", nextPagesRes.reason);
     if (clicksRes.status === "rejected") console.warn("link_click failed:", clicksRes.reason);
 
-    // prevPages: pageReferrer → interní cesta NEBO seskupit do (entrance)
-    const prevMap = new Map<string, number>();
-    for (const row of prevPages?.data?.rows || []) {
-      const referrer = row.dimensionValues?.[0]?.value || "";
+    // ── Zpracování B stránek ─────────────────────────────────────────────────
+    // Seskupit: interní cesta nebo (entrance)
+    const prevMapB = new Map<string, number>();
+    for (const row of prevPagesRaw?.data?.rows || []) {
+      const label = referrerToPath(row.dimensionValues?.[0]?.value || "");
       const views = parseInt(row.metricValues?.[0]?.value || "0");
-      let label: string;
-      if (referrer.startsWith(SITE_ORIGIN)) {
-        // Interní odkaz — extrahovat cestu
-        try { label = new URL(referrer).pathname; } catch { label = referrer.replace(SITE_ORIGIN, ""); }
-      } else {
-        // Vše ostatní (Google, Facebook, přímý vstup, ...) → seskupit do (entrance)
-        label = "(entrance)";
-      }
-      prevMap.set(label, (prevMap.get(label) || 0) + views);
+      prevMapB.set(label, (prevMapB.get(label) || 0) + views);
     }
-    const prevRows = Array.from(prevMap.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 10)
-      .map(([label, views]) => ({
-        dimensionValues: [{ value: label }],
-        metricValues: [{ value: String(views) }],
-      }))
-      .filter((r) => !!r.dimensionValues[0].value);
+    const bPages = Array.from(prevMapB.entries()).sort((a, b) => b[1] - a[1]).slice(0, 10);
 
-    // nextPages: pagePath — rovnou použijeme
+    // ── Fáze 2: pro každou interní B stránku získej její referrery (A stránky) ──
+    const internalBPages = bPages.filter(([path]) => path !== "(entrance)").slice(0, 5);
+
+    const chainResults = await Promise.allSettled(
+      internalBPages.map(([bPath]) =>
+        analyticsData.properties.runReport({
+          property: propertyId,
+          requestBody: {
+            dateRanges: [{ startDate, endDate }],
+            dimensions: [{ name: "pageReferrer" }],
+            metrics: [{ name: "screenPageViews" }],
+            dimensionFilter: {
+              filter: {
+                fieldName: "pagePath",
+                stringFilter: { matchType: "EXACT" as const, value: bPath },
+              },
+            },
+            orderBys: [{ metric: { metricName: "screenPageViews" }, desc: true }],
+            limit: "5",
+          },
+        })
+      )
+    );
+
+    // ── Sestavení prevChains: [{pathA, pathB, views}] ────────────────────────
+    // Základ: všechny B stránky (i entrance) bez A
+    const prevRows: { pathA: string | null; pathB: string; views: number }[] = [];
+
+    for (const [bPath, bViews] of bPages) {
+      if (bPath === "(entrance)") {
+        // Přímý vstup — žádné A
+        prevRows.push({ pathA: null, pathB: "(entrance)", views: bViews });
+        continue;
+      }
+
+      // Interní B — podívat se jestli máme chain data
+      const bIdx = internalBPages.findIndex(([p]) => p === bPath);
+      const chainRes = bIdx >= 0 ? get(chainResults[bIdx]) : null;
+
+      if (chainRes?.data?.rows?.length) {
+        // Máme A stránky pro tuto B — seskupit
+        const aMap = new Map<string | null, number>();
+        for (const row of chainRes.data.rows) {
+          const aLabel = referrerToPath(row.dimensionValues?.[0]?.value || "");
+          const v = parseInt(row.metricValues?.[0]?.value || "0");
+          const key = aLabel === "(entrance)" ? null : aLabel;
+          aMap.set(key, (aMap.get(key) || 0) + v);
+        }
+        for (const [aPath, views] of Array.from(aMap.entries()).sort((a, b) => b[1] - a[1]).slice(0, 3)) {
+          prevRows.push({ pathA: aPath, pathB: bPath, views });
+        }
+      } else {
+        // Nemáme A data — zobrazit jen B
+        prevRows.push({ pathA: null, pathB: bPath, views: bViews });
+      }
+    }
+
+    // Seřadit podle views
+    prevRows.sort((a, b) => b.views - a.views);
+
+    // ── Následující stránky ──────────────────────────────────────────────────
     const nextRows = (nextPages?.data?.rows || [])
       .map((row) => ({
         dimensionValues: [{ value: row.dimensionValues?.[0]?.value || "" }],
@@ -175,23 +227,20 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       summary: summary?.data?.rows?.[0] || null,
       sources: sources?.data?.rows || [],
-      prevPages: prevRows,
+      prevChains: prevRows,   // nový formát s řetězcem A → B
       nextPages: nextRows,
       clicks: clicks?.data?.rows || [],
       _debug: {
         prevPagesStatus: prevPagesRes.status,
         prevPagesError: getErr(prevPagesRes),
-        prevPagesRawCount: prevPages?.data?.rows?.length ?? 0,
-        prevPagesCount: prevRows.length,
+        prevPagesRawCount: prevPagesRaw?.data?.rows?.length ?? 0,
+        prevChainsCount: prevRows.length,
         nextPagesStatus: nextPagesRes.status,
         nextPagesError: getErr(nextPagesRes),
-        nextPagesRawCount: nextPages?.data?.rows?.length ?? 0,
         nextPagesCount: nextRows.length,
         clicksStatus: clicksRes.status,
         clicksError: getErr(clicksRes),
         pagePath,
-        startDate,
-        endDate,
       },
     });
   } catch (error) {

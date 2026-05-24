@@ -3,11 +3,20 @@ import { google } from "googleapis";
 
 const SITE_ORIGIN = process.env.NEXT_PUBLIC_SITE_ORIGIN || "https://klimatizace-hustopece.cz";
 
+/** Normalizuje cestu — přidá trailing slash pokud chybí (a není to soubor) */
+function normalizePath(path: string): string {
+  if (!path || path === "/") return "/";
+  // Pokud cesta obsahuje tečku v poslední části, je to soubor — nechme bez lomítka
+  const lastSegment = path.split("/").filter(Boolean).pop() || "";
+  if (lastSegment.includes(".")) return path;
+  return path.endsWith("/") ? path : path + "/";
+}
+
 /** Převede pageReferrer na interní cestu nebo "(entrance)" */
 function referrerToPath(referrer: string): string {
   if (!referrer || referrer === "(direct)") return "(entrance)";
   if (referrer.startsWith(SITE_ORIGIN)) {
-    try { return new URL(referrer).pathname; } catch { return referrer.replace(SITE_ORIGIN, ""); }
+    try { return normalizePath(new URL(referrer).pathname); } catch { return normalizePath(referrer.replace(SITE_ORIGIN, "")); }
   }
   return "(entrance)"; // vše externe seskupíme
 }
@@ -159,13 +168,20 @@ export async function GET(req: NextRequest) {
     // ── Sestavení prevRows: [{pathB, views}] ────────────────────────────────
     const prevRows = bPages.map(([pathB, views]) => ({ pathB, views }));
 
-    // ── Následující stránky ──────────────────────────────────────────────────
-    const nextRows = (nextPages?.data?.rows || [])
-      .map((row) => ({
-        dimensionValues: [{ value: row.dimensionValues?.[0]?.value || "" }],
-        metricValues: row.metricValues,
-      }))
-      .filter((r) => !!r.dimensionValues[0].value);
+    // ── Následující stránky — normalizovat trailing slash, seskupit duplicity ─
+    const nextMap = new Map<string, number>();
+    for (const row of nextPages?.data?.rows || []) {
+      const path = normalizePath(row.dimensionValues?.[0]?.value || "");
+      if (!path) continue;
+      const views = parseInt(row.metricValues?.[0]?.value || "0");
+      nextMap.set(path, (nextMap.get(path) || 0) + views);
+    }
+    const nextRows = Array.from(nextMap.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([path, views]) => ({
+        dimensionValues: [{ value: path }],
+        metricValues: [{ value: String(views) }],
+      }));
 
     return NextResponse.json({
       summary: summary?.data?.rows?.[0] || null,

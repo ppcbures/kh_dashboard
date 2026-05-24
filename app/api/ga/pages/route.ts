@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { BetaAnalyticsDataClient } from "@googleapis/analyticsdata";
+import { google } from "googleapis";
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("Authorization");
@@ -14,40 +14,42 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const analyticsData = new BetaAnalyticsDataClient({
-      authClient: {
-        getRequestHeaders: async () => ({
-          Authorization: `Bearer ${accessToken}`,
-        }),
-      } as never,
-    });
+    const auth = new google.auth.OAuth2();
+    auth.setCredentials({ access_token: accessToken });
 
-    // Načíst seznam stránek s metrikami
-    const [response] = await analyticsData.runReport({
+    const analyticsData = google.analyticsdata({ version: "v1beta", auth });
+
+    const response = await analyticsData.properties.runReport({
       property: propertyId,
-      dateRanges: [{ startDate, endDate }],
-      dimensions: [
-        { name: "pagePath" },
-        { name: "pageTitle" },
-        { name: "sessionSourceMedium" },
-      ],
-      metrics: [
-        { name: "screenPageViews" },
-        { name: "averageSessionDuration" },
-        { name: "bounceRate" },
-        { name: "sessions" },
-        { name: "totalUsers" },
-      ],
-      orderBys: [
-        {
-          metric: { metricName: "screenPageViews" },
-          desc: true,
-        },
-      ],
-      limit: 100,
+      requestBody: {
+        dateRanges: [{ startDate, endDate }],
+        dimensions: [
+          { name: "pagePath" },
+          { name: "pageTitle" },
+          { name: "sessionSourceMedium" },
+        ],
+        metrics: [
+          { name: "screenPageViews" },
+          { name: "averageSessionDuration" },
+          { name: "bounceRate" },
+          { name: "sessions" },
+          { name: "totalUsers" },
+        ],
+        orderBys: [
+          {
+            metric: { metricName: "screenPageViews" },
+            desc: true,
+          },
+        ],
+        limit: "100",
+      },
     });
 
-    return NextResponse.json({ rows: response.rows || [], dimensionHeaders: response.dimensionHeaders, metricHeaders: response.metricHeaders });
+    return NextResponse.json({
+      rows: response.data.rows || [],
+      dimensionHeaders: response.data.dimensionHeaders,
+      metricHeaders: response.data.metricHeaders,
+    });
   } catch (error) {
     console.error("GA pages error:", error);
     return NextResponse.json({ error: "Nepodařilo se načíst data stránek" }, { status: 500 });

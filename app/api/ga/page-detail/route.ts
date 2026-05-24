@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { BetaAnalyticsDataClient } from "@googleapis/analyticsdata";
+import { google } from "googleapis";
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("Authorization");
@@ -15,69 +15,64 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const analyticsData = new BetaAnalyticsDataClient({
-      authClient: {
-        getRequestHeaders: async () => ({
-          Authorization: `Bearer ${accessToken}`,
-        }),
-      } as never,
-    });
+    const auth = new google.auth.OAuth2();
+    auth.setCredentials({ access_token: accessToken });
+
+    const analyticsData = google.analyticsdata({ version: "v1beta", auth });
 
     // Detail konkrétní stránky — zdroje/média
-    const [sourcesResponse] = await analyticsData.runReport({
+    const sourcesRes = await analyticsData.properties.runReport({
       property: propertyId,
-      dateRanges: [{ startDate, endDate }],
-      dimensions: [
-        { name: "pagePath" },
-        { name: "sessionSourceMedium" },
-      ],
-      metrics: [
-        { name: "sessions" },
-        { name: "screenPageViews" },
-        { name: "totalUsers" },
-      ],
-      dimensionFilter: {
-        filter: {
-          fieldName: "pagePath",
-          stringFilter: {
-            matchType: "EXACT",
-            value: pagePath,
+      requestBody: {
+        dateRanges: [{ startDate, endDate }],
+        dimensions: [
+          { name: "pagePath" },
+          { name: "sessionSourceMedium" },
+        ],
+        metrics: [
+          { name: "sessions" },
+          { name: "screenPageViews" },
+          { name: "totalUsers" },
+        ],
+        dimensionFilter: {
+          filter: {
+            fieldName: "pagePath",
+            stringFilter: { matchType: "EXACT", value: pagePath },
           },
         },
+        orderBys: [{ metric: { metricName: "sessions" }, desc: true }],
+        limit: "20",
       },
-      orderBys: [{ metric: { metricName: "sessions" }, desc: true }],
-      limit: 20,
     });
 
     // Souhrnné metriky pro stránku
-    const [summaryResponse] = await analyticsData.runReport({
+    const summaryRes = await analyticsData.properties.runReport({
       property: propertyId,
-      dateRanges: [{ startDate, endDate }],
-      dimensions: [{ name: "pagePath" }],
-      metrics: [
-        { name: "screenPageViews" },
-        { name: "averageSessionDuration" },
-        { name: "bounceRate" },
-        { name: "sessions" },
-        { name: "totalUsers" },
-        { name: "userEngagementDuration" },
-      ],
-      dimensionFilter: {
-        filter: {
-          fieldName: "pagePath",
-          stringFilter: {
-            matchType: "EXACT",
-            value: pagePath,
+      requestBody: {
+        dateRanges: [{ startDate, endDate }],
+        dimensions: [{ name: "pagePath" }],
+        metrics: [
+          { name: "screenPageViews" },
+          { name: "averageSessionDuration" },
+          { name: "bounceRate" },
+          { name: "sessions" },
+          { name: "totalUsers" },
+          { name: "userEngagementDuration" },
+        ],
+        dimensionFilter: {
+          filter: {
+            fieldName: "pagePath",
+            stringFilter: { matchType: "EXACT", value: pagePath },
           },
         },
       },
     });
 
     return NextResponse.json({
-      sources: sourcesResponse.rows || [],
-      summary: summaryResponse.rows?.[0] || null,
-      sourceHeaders: sourcesResponse.metricHeaders,
-      summaryHeaders: summaryResponse.metricHeaders,
+      sources: sourcesRes.data.rows || [],
+      summary: summaryRes.data.rows?.[0] || null,
+      sourceHeaders: sourcesRes.data.metricHeaders,
+      summaryHeaders: summaryRes.data.metricHeaders,
     });
   } catch (error) {
     console.error("GA page-detail error:", error);

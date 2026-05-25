@@ -208,7 +208,9 @@ export default function OverviewPage() {
                   displayedRows.map((row, i) => (
                     <tr key={i}
                       className={`border-b border-gray-100 transition-colors ${
-                        row.realizace ? "bg-green-50 hover:bg-green-100" : "hover:bg-gray-50"
+                        row.realizace
+                          ? "bg-green-50 hover:bg-green-100"
+                          : i % 2 === 1 ? "bg-gray-50 hover:bg-gray-100" : "bg-white hover:bg-gray-50"
                       }`}
                     >
                       <td className="px-3 py-2 font-mono text-xs text-gray-600">{row.id}</td>

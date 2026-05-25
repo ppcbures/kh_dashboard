@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import DateRangePicker from "@/components/DateRangePicker";
 import { useDateRange } from "@/contexts/DateRangeContext";
 
@@ -38,6 +38,7 @@ export default function OverviewPage() {
   const [loadingBudget, setLoadingBudget] = useState(false);
   const [loadingSpend,  setLoadingSpend]  = useState(false);
   const [loadingLeads,  setLoadingLeads]  = useState(false);
+  const [channelsOpen,  setChannelsOpen]  = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -83,9 +84,9 @@ export default function OverviewPage() {
           <p className="text-xs text-gray-400 mb-3">Plán pro {budget?.planPro ?? "…"}</p>
           <div className="grid grid-cols-3 gap-4 mb-3">
             {[
-              { label: "Celkem rozpočet",        value: totalBudget, loading: loadingBudget },
-              { label: "Celkem ideální útrata",  value: totalIdeal,  loading: loadingBudget },
-              { label: "Celkem aktuální útrata", value: totalSpend,  loading: loadingSpend  },
+              { label: "Celkem rozpočet",                          value: totalBudget, loading: loadingBudget },
+              { label: "Celkem ideální útrata (ke včerejšímu dni)", value: totalIdeal,  loading: loadingBudget },
+              { label: "Celková útrata za vybrané datum",           value: totalSpend,  loading: loadingSpend  },
             ].map(c => (
               <div key={c.label} className="bg-white rounded-xl border border-gray-200 p-4">
                 <p className="text-xs text-gray-500 font-medium mb-1">{c.label}</p>
@@ -93,31 +94,42 @@ export default function OverviewPage() {
               </div>
             ))}
           </div>
-          {/* Detail kanálů */}
+          {/* Detail kanálů — rozklikávací */}
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500">Kanál</th>
-                  <th className="text-right px-4 py-2 text-xs font-semibold text-gray-500">Rozpočet</th>
-                  <th className="text-right px-4 py-2 text-xs font-semibold text-gray-500">Ideální útrata</th>
-                  <th className="text-right px-4 py-2 text-xs font-semibold text-gray-500">Aktuální útrata</th>
-                </tr>
-              </thead>
-              <tbody>
-                {CHANNELS.map(ch => (
-                  <tr key={ch.key} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="px-4 py-2 font-medium flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: ch.color }} />
-                      {ch.label}
-                    </td>
-                    <td className="px-4 py-2 text-right text-gray-700">{loadingBudget ? <Spinner /> : fmtKc(budget?.[ch.key].budget ?? 0)}</td>
-                    <td className="px-4 py-2 text-right text-gray-700">{loadingBudget ? <Spinner /> : fmtKc(budget?.[ch.key].ideal ?? 0)}</td>
-                    <td className="px-4 py-2 text-right font-semibold">{loadingSpend ? <Spinner /> : fmtKc(spend?.[ch.key] ?? 0)}</td>
+            <button
+              onClick={() => setChannelsOpen(o => !o)}
+              className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-gray-50 transition-colors"
+            >
+              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Útrata dle kanálů</span>
+              <svg className={`w-4 h-4 text-gray-400 transition-transform ${channelsOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            {channelsOpen && (
+              <table className="w-full text-sm border-t border-gray-200">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-200">
+                    <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500">Kanál</th>
+                    <th className="text-right px-4 py-2 text-xs font-semibold text-gray-500">Rozpočet</th>
+                    <th className="text-right px-4 py-2 text-xs font-semibold text-gray-500">Ideální útrata</th>
+                    <th className="text-right px-4 py-2 text-xs font-semibold text-gray-500">Aktuální útrata</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {CHANNELS.map(ch => (
+                    <tr key={ch.key} className="border-b border-gray-100 hover:bg-gray-50">
+                      <td className="px-4 py-2 font-medium flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: ch.color }} />
+                        {ch.label}
+                      </td>
+                      <td className="px-4 py-2 text-right text-gray-700">{loadingBudget ? <Spinner /> : fmtKc(budget?.[ch.key].budget ?? 0)}</td>
+                      <td className="px-4 py-2 text-right text-gray-700">{loadingBudget ? <Spinner /> : fmtKc(budget?.[ch.key].ideal ?? 0)}</td>
+                      <td className="px-4 py-2 text-right font-semibold">{loadingSpend ? <Spinner /> : fmtKc(spend?.[ch.key] ?? 0)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </div>
 

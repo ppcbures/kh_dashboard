@@ -53,6 +53,22 @@ function parseCSV(text: string): string[][] {
   return rows;
 }
 
+/** Parsuje číslo marže — odstraní mezery jako oddělovač tisíců (např. "10 324" → 10324) */
+function parseMarze(raw: string): number | null {
+  const cleaned = raw.replace(/[\s ]/g, "").replace(",", ".");
+  if (!cleaned || cleaned === "-") return null;
+  const n = parseFloat(cleaned);
+  return isNaN(n) ? null : n;
+}
+
+/** Pomocný klíč pro řazení dle PK čísla vzestupně: PK24-5 → [24, 5] */
+function pkSortKey(id: string): [number, number] {
+  const m = id.match(/PK(\d+)-(\d+)/i);
+  if (m) return [parseInt(m[1]), parseInt(m[2])];
+  const n = parseInt(id);
+  return [0, isNaN(n) ? 0 : n]; // starší numerická ID dáme před PK
+}
+
 /** "6.1.2025" or "22.12.2024" → "2025-01-06" */
 function parseNewDate(d: string): string {
   const parts = d.trim().split(".");
@@ -91,9 +107,7 @@ function parseOldRows(rows: string[][], startDate: string, endDate: string): Lea
     if (!dateOnly || dateOnly < startDate || dateOnly > endDate) continue;
 
     const realizace = (row[9] || "").trim().toLowerCase() === "ano";
-    const rawMarze = (row[10] || "").trim();
-    const marze = rawMarze && rawMarze !== "-" && !isNaN(parseFloat(rawMarze))
-      ? parseFloat(rawMarze) : null;
+    const marze = parseMarze(row[10] || "");
     const marzeChybi = realizace && marze === null;
 
     const zdrojRaw = (row[6] || "").trim();
@@ -139,11 +153,7 @@ function parseNewRows(
 
     const realizaceRaw = (row[6] || "").trim().toLowerCase();
     const realizace = realizaceRaw === "ano";
-    const rawMarze = (row[7] || "").trim();
-    const marze =
-      rawMarze && rawMarze !== "-" && !isNaN(parseFloat(rawMarze))
-        ? parseFloat(rawMarze)
-        : null;
+    const marze = parseMarze(row[7] || "");
     const marzeChybi = realizace && marze === null;
 
     const zdrojRaw = (row[9] || "").trim();
@@ -152,7 +162,7 @@ function parseNewRows(
     leads.push({
       id,
       date: dateOnly,
-      name: row[3] || "",
+      name: (row[3] || "").split("\n")[0].trim(), // víceřádkové buňky — jen první řádek
       realizace,
       marze,
       marzeChybi,
@@ -208,12 +218,12 @@ export async function GET(req: NextRequest) {
       }
     });
 
-    // Sort descending by date; rows without dates (2024 sheet) go to the end
+    // Řadit vzestupně dle PK čísla (PK24-1, PK24-2, ... PK26-300)
     allLeads.sort((a, b) => {
-      if (!a.date && !b.date) return 0;
-      if (!a.date) return 1;
-      if (!b.date) return -1;
-      return b.date.localeCompare(a.date);
+      const [ay, an] = pkSortKey(a.id);
+      const [by, bn] = pkSortKey(b.id);
+      if (ay !== by) return ay - by;
+      return an - bn;
     });
 
     const realizaceCount = allLeads.filter(r => r.realizace).length;

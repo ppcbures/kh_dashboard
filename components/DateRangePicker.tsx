@@ -71,7 +71,14 @@ export default function DateRangePicker({ value, onChange }: DateRangePickerProp
   return (
     <div className="relative">
       <button
-        onClick={() => setOpen(!open)}
+        onClick={() => {
+          if (!open) {
+            // při otevření vždy předvyplnit aktuálně vybraný rozsah
+            setCustomStart(value.startDate);
+            setCustomEnd(value.endDate);
+          }
+          setOpen(!open);
+        }}
         className="flex items-center gap-2 border border-gray-300 rounded-lg px-4 py-2 text-sm bg-white shadow-sm hover:border-blue-400 transition-colors"
       >
         <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">

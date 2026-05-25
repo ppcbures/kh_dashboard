@@ -191,7 +191,21 @@ export default function OverviewPage() {
                       { year: 2026, rows: history?.y2026 ?? [] },
                       { year: 2025, rows: history?.y2025 ?? [] },
                       { year: 2024, rows: history?.y2024 ?? [] },
-                    ] as { year: number; rows: MonthRow[] }[]).map(({ year, rows }) => (
+                    ] as { year: number; rows: MonthRow[] }[]).map(({ year, rows }) => {
+                      // Pomocná funkce: "60 997 Kč" → 60997
+                      const parseKc = (s: string) =>
+                        parseFloat(s.replace(/[\s ]/g, "").replace("Kč", "").replace(",", ".")) || 0;
+
+                      const filled       = rows.filter(r => r.utrata);
+                      const totUtrata    = filled.reduce((s, r) => s + parseKc(r.utrata), 0);
+                      const totPoptavky  = filled.reduce((s, r) => s + (parseInt(r.poptavky) || 0), 0);
+                      const totRealizace = filled.reduce((s, r) => s + (parseInt(r.realizace) || 0), 0);
+                      const totMarze     = filled.reduce((s, r) => s + parseKc(r.marze), 0);
+                      const totCpPop     = totPoptavky  > 0 ? Math.round(totUtrata / totPoptavky)  : 0;
+                      const totCpReal    = totRealizace > 0 ? Math.round(totUtrata / totRealizace) : 0;
+                      const fmtKcLocal   = (n: number) => n > 0 ? n.toLocaleString("cs-CZ") + " Kč" : "—";
+
+                      return (
                       <div key={year} className="border border-gray-200 rounded-lg overflow-hidden">
                         {/* Hlavička roku */}
                         <div className="py-3 text-center font-bold text-gray-800 text-xl tracking-wide border-b border-gray-200 bg-gray-50">
@@ -228,10 +242,23 @@ export default function OverviewPage() {
                                 </tr>
                               );
                             })}
+                            {/* Souhrnný řádek */}
+                            {filled.length > 0 && (
+                              <tr className="border-t-2 border-gray-300 bg-gray-100 font-bold text-gray-800">
+                                <td className="px-2 py-2 whitespace-nowrap">Celkem</td>
+                                <td className="px-2 py-2 text-right whitespace-nowrap">{fmtKcLocal(totUtrata)}</td>
+                                <td className="px-2 py-2 text-right">{totPoptavky > 0 ? totPoptavky : "—"}</td>
+                                <td className="px-2 py-2 text-right whitespace-nowrap">{fmtKcLocal(totCpPop)}</td>
+                                <td className="px-2 py-2 text-right">{totRealizace > 0 ? totRealizace : "—"}</td>
+                                <td className="px-2 py-2 text-right whitespace-nowrap">{fmtKcLocal(totCpReal)}</td>
+                                <td className="px-2 py-2 text-right whitespace-nowrap">{fmtKcLocal(totMarze)}</td>
+                              </tr>
+                            )}
                           </tbody>
                         </table>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>

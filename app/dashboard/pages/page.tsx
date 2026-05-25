@@ -2,7 +2,6 @@
 
 import { useSession } from "next-auth/react";
 import { useState, useEffect, useCallback } from "react";
-import PropertySelector from "@/components/PropertySelector";
 import DateRangePicker from "@/components/DateRangePicker";
 import { useDateRange } from "@/contexts/DateRangeContext";
 
@@ -134,6 +133,7 @@ export default function PagesAnalysis() {
   const { data: session } = useSession();
   const [selectedProperty, setSelectedProperty] = useState<string | null>(null);
   const [propertyName, setPropertyName] = useState<string>("");
+  const [propertyError, setPropertyError] = useState<string | null>(null);
   const { dateRange, setDateRange } = useDateRange();
   const [pages, setPages] = useState<PageRow[]>([]);
   const [loadingPages, setLoadingPages] = useState(false);
@@ -146,6 +146,31 @@ export default function PagesAnalysis() {
   const [sortBy, setSortBy] = useState<GaSortKey>("views");
 
   const accessToken = (session as { accessToken?: string })?.accessToken;
+
+  // Auto-select GA4 property
+  useEffect(() => {
+    if (!accessToken || selectedProperty) return;
+    (async () => {
+      try {
+        const res = await fetch("/api/ga/properties", {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        const props: { name: string; displayName: string }[] = data.properties || [];
+        if (props.length === 0) throw new Error("Žádné GA4 properties nenalezeny");
+        const keyword = process.env.NEXT_PUBLIC_GA_PROPERTY_KEYWORD?.toLowerCase();
+        const match = keyword
+          ? props.find(p => p.displayName.toLowerCase().includes(keyword) || p.name.toLowerCase().includes(keyword))
+          : null;
+        const chosen = match ?? props[0];
+        setSelectedProperty(chosen.name);
+        setPropertyName(chosen.displayName);
+      } catch (err) {
+        setPropertyError(err instanceof Error ? err.message : "Chyba načítání GA4");
+      }
+    })();
+  }, [accessToken, selectedProperty]);
 
   // Načíst seznam stránek
   const fetchPages = useCallback(async () => {
@@ -300,19 +325,6 @@ export default function PagesAnalysis() {
           {propertyName && <p className="text-sm text-gray-500 mt-0.5">{propertyName}</p>}
         </div>
         <div className="flex items-center gap-4">
-          {/* PropertySelector skrytý — auto-selectuje jedinou property na pozadí */}
-          {accessToken && !selectedProperty && (
-            <div className="hidden">
-              <PropertySelector
-                accessToken={accessToken}
-                selectedProperty={selectedProperty}
-                onSelect={(id, name) => {
-                  setSelectedProperty(id);
-                  setPropertyName(name);
-                }}
-              />
-            </div>
-          )}
           <DateRangePicker value={dateRange} onChange={setDateRange} />
         </div>
       </div>
@@ -320,10 +332,23 @@ export default function PagesAnalysis() {
       {/* Content */}
       {!selectedProperty ? (
         <div className="flex-1 flex items-center justify-center">
-          <div className="flex items-center gap-3 text-gray-400">
-            <div className="w-5 h-5 border-2 border-gray-300 border-t-gray-500 rounded-full animate-spin" />
-            <span className="text-sm">Načítám data...</span>
-          </div>
+          {propertyError ? (
+            <div className="text-center">
+              <div className="text-red-500 font-medium text-sm mb-1">Nepodařilo se načíst GA4</div>
+              <div className="text-gray-400 text-xs">{propertyError}</div>
+              <button
+                onClick={() => { setPropertyError(null); }}
+                className="mt-3 px-4 py-2 text-xs bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-600 transition-colors"
+              >
+                Zkusit znovu
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3 text-gray-400">
+              <div className="w-5 h-5 border-2 border-gray-300 border-t-gray-500 rounded-full animate-spin" />
+              <span className="text-sm">Načítám data...</span>
+            </div>
+          )}
         </div>
       ) : (
         <div className="flex flex-1 overflow-hidden">

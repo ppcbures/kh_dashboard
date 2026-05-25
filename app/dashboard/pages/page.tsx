@@ -430,16 +430,109 @@ export default function PagesAnalysis() {
           {/* Pravý panel — detail stránky */}
           <div className="flex-1 overflow-y-auto p-6">
             {!selectedPage ? (
-              <div className="flex items-center justify-center h-full">
-                <div className="text-center text-gray-400">
-                  <svg className="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                      d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5" />
-                  </svg>
-                  <p className="font-medium">Vyberte stránku vlevo</p>
-                  <p className="text-sm mt-1">Zobrazí se detailní statistiky</p>
+              loadingPages ? (
+                <div className="flex items-center justify-center h-full">
+                  <div className="w-8 h-8 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin" />
                 </div>
-              </div>
+              ) : pages.length === 0 ? (
+                <div className="flex items-center justify-center h-full text-gray-400 text-sm">
+                  Žádná data pro vybrané období
+                </div>
+              ) : (() => {
+                // Agregát z načtených stránek
+                const totalViews    = pages.reduce((s, p) => s + p.views, 0);
+                const totalSessions = pages.reduce((s, p) => s + p.sessions, 0);
+                const totalUsers    = pages.reduce((s, p) => s + p.users, 0);
+                const avgBounce     = pages.reduce((s, p) => s + p.bounceRate, 0) / pages.length;
+                const avgDur        = pages.reduce((s, p) => s + p.avgDuration, 0) / pages.length;
+                const top10         = [...pages].sort((a, b) => b.views - a.views).slice(0, 10);
+                const maxViews      = top10[0]?.views || 1;
+
+                return (
+                  <div className="space-y-6">
+                    {/* Hlavička */}
+                    <div>
+                      <h2 className="text-lg font-bold text-gray-900">Přehled webu</h2>
+                      <p className="text-sm text-gray-400 mt-0.5">
+                        {pages.length} stránek · {dateRange.startDate} – {dateRange.endDate}
+                      </p>
+                    </div>
+
+                    {/* KPI karty */}
+                    <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
+                      {[
+                        { label: "Zobrazení stránek", value: formatNumber(totalViews),   icon: "👁" },
+                        { label: "Relace",             value: formatNumber(totalSessions), icon: "📊" },
+                        { label: "Unikátní uživatelé", value: formatNumber(totalUsers),   icon: "👤" },
+                        { label: "Prům. doba na webu", value: formatDuration(avgDur),     icon: "⏱" },
+                        { label: "Prům. míra odchodu", value: `${(avgBounce * 100).toFixed(1)} %`, icon: "🚪" },
+                      ].map(c => (
+                        <div key={c.label} className="bg-white rounded-xl border border-gray-200 p-4 border-t-2" style={{ borderTopColor: "#e30613" }}>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-base">{c.icon}</span>
+                            <span className="text-xs text-gray-500 font-medium uppercase tracking-wide leading-tight">{c.label}</span>
+                          </div>
+                          <p className="text-xl font-bold text-black">{c.value}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Top 10 stránek */}
+                    <div>
+                      <h3 className="text-base font-semibold text-gray-800 mb-3">Top stránky dle zobrazení</h3>
+                      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="bg-gray-50 border-b border-gray-200">
+                              <th className="text-left px-4 py-3 text-gray-600 font-semibold">Stránka</th>
+                              <th className="text-right px-4 py-3 text-gray-600 font-semibold w-24">Zobrazení</th>
+                              <th className="text-right px-4 py-3 text-gray-600 font-semibold w-20">Relace</th>
+                              <th className="text-right px-4 py-3 text-gray-600 font-semibold w-20">Uživatelé</th>
+                              <th className="text-right px-4 py-3 text-gray-600 font-semibold w-20">Prům. doba</th>
+                              <th className="text-right px-4 py-3 text-gray-600 font-semibold w-20">Odchod</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {top10.map((page, i) => (
+                              <tr
+                                key={page.pagePath}
+                                onClick={() => fetchDetail(page)}
+                                className={`border-b border-gray-100 hover:bg-blue-50 cursor-pointer transition-colors ${i % 2 === 1 ? "bg-gray-50" : "bg-white"}`}
+                              >
+                                <td className="px-4 py-3">
+                                  <div className="flex flex-col gap-0.5">
+                                    <span className="font-medium text-gray-800 truncate max-w-xs font-mono text-xs" title={page.pagePath}>
+                                      {page.pagePath}
+                                    </span>
+                                    <span className="text-xs text-gray-400 truncate max-w-xs" title={page.pageTitle}>
+                                      {page.pageTitle}
+                                    </span>
+                                    {/* Relativní pruh */}
+                                    <div className="h-1 rounded-full bg-gray-100 mt-1 max-w-[200px]">
+                                      <div
+                                        className="h-1 rounded-full"
+                                        style={{ width: `${(page.views / maxViews) * 100}%`, backgroundColor: "#e30613" }}
+                                      />
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3 text-right font-semibold text-gray-800">{formatNumber(page.views)}</td>
+                                <td className="px-4 py-3 text-right text-gray-600">{formatNumber(page.sessions)}</td>
+                                <td className="px-4 py-3 text-right text-gray-600">{formatNumber(page.users)}</td>
+                                <td className="px-4 py-3 text-right text-gray-500">{formatDuration(page.avgDuration)}</td>
+                                <td className="px-4 py-3 text-right text-gray-500">{(page.bounceRate * 100).toFixed(1)} %</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                        <div className="px-4 py-2 bg-gray-50 border-t border-gray-100 text-xs text-gray-400">
+                          Kliknutím na řádek zobrazíte detail stránky · Celkem {pages.length} stránek ve výpisu vlevo
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()
             ) : loadingDetail ? (
               <div className="flex items-center justify-center h-full">
                 <div className="w-8 h-8 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin" />

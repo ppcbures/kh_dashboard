@@ -186,26 +186,27 @@ export default function OverviewPage() {
                 {loadingHistory ? (
                   <div className="px-4 py-6 text-center"><Spinner /></div>
                 ) : (
-                  <div className="flex divide-x divide-gray-200 min-w-[900px]">
+                  <div className="grid grid-cols-3 gap-4 p-4 min-w-[860px]">
                     {([
                       { year: 2026, rows: history?.y2026 ?? [] },
                       { year: 2025, rows: history?.y2025 ?? [] },
                       { year: 2024, rows: history?.y2024 ?? [] },
                     ] as { year: number; rows: MonthRow[] }[]).map(({ year, rows }) => (
-                      <div key={year} className="flex-1 min-w-0">
-                        <div className="px-3 py-2 text-center font-bold text-gray-700 text-sm border-b border-gray-200 bg-gray-50">
+                      <div key={year} className="border border-gray-200 rounded-lg overflow-hidden">
+                        {/* Hlavička roku */}
+                        <div className="py-3 text-center font-bold text-gray-800 text-xl tracking-wide border-b border-gray-200 bg-gray-50">
                           {year}
                         </div>
                         <table className="w-full text-xs">
                           <thead>
-                            <tr className="border-b border-gray-100 bg-gray-50">
-                              <th className="text-left px-2 py-1.5 font-semibold text-gray-500">Měsíc</th>
-                              <th className="text-right px-2 py-1.5 font-semibold text-gray-500">Útrata</th>
-                              <th className="text-right px-2 py-1.5 font-semibold text-gray-500">Pop.</th>
-                              <th className="text-right px-2 py-1.5 font-semibold text-gray-500">C/pop.</th>
-                              <th className="text-right px-2 py-1.5 font-semibold text-gray-500">Real.</th>
-                              <th className="text-right px-2 py-1.5 font-semibold text-gray-500">C/real.</th>
-                              <th className="text-right px-2 py-1.5 font-semibold text-gray-500">Marže</th>
+                            <tr className="border-b border-gray-200 bg-gray-50">
+                              <th className="text-left px-2 py-2 font-semibold text-gray-500 whitespace-nowrap">Měsíc</th>
+                              <th className="text-right px-2 py-2 font-semibold text-gray-500 whitespace-nowrap">Útrata</th>
+                              <th className="text-right px-2 py-2 font-semibold text-gray-500 leading-tight">Počet<br/>poptávek</th>
+                              <th className="text-right px-2 py-2 font-semibold text-gray-500 leading-tight">Cena za<br/>poptávku</th>
+                              <th className="text-right px-2 py-2 font-semibold text-gray-500 leading-tight">Počet<br/>realizací</th>
+                              <th className="text-right px-2 py-2 font-semibold text-gray-500 leading-tight">Cena za<br/>realizaci</th>
+                              <th className="text-right px-2 py-2 font-semibold text-gray-500 leading-tight">Hrubá<br/>marže</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -217,13 +218,13 @@ export default function OverviewPage() {
                                     empty ? "text-gray-300" : i % 2 === 1 ? "bg-gray-50" : "bg-white"
                                   }`}
                                 >
-                                  <td className="px-2 py-1.5 font-medium text-gray-700">{r.mesic}</td>
-                                  <td className="px-2 py-1.5 text-right">{r.utrata || "—"}</td>
+                                  <td className="px-2 py-1.5 font-medium text-gray-700 whitespace-nowrap">{r.mesic}</td>
+                                  <td className="px-2 py-1.5 text-right whitespace-nowrap">{r.utrata || "—"}</td>
                                   <td className="px-2 py-1.5 text-right">{r.poptavky || "—"}</td>
-                                  <td className="px-2 py-1.5 text-right">{r.cpPoptavky || "—"}</td>
+                                  <td className="px-2 py-1.5 text-right whitespace-nowrap">{r.cpPoptavky || "—"}</td>
                                   <td className="px-2 py-1.5 text-right">{r.realizace || "—"}</td>
-                                  <td className="px-2 py-1.5 text-right">{r.cpRealizace || "—"}</td>
-                                  <td className="px-2 py-1.5 text-right">{r.marze || "—"}</td>
+                                  <td className="px-2 py-1.5 text-right whitespace-nowrap">{r.cpRealizace || "—"}</td>
+                                  <td className="px-2 py-1.5 text-right whitespace-nowrap">{r.marze || "—"}</td>
                                 </tr>
                               );
                             })}

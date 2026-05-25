@@ -223,7 +223,9 @@ export default function OverviewPage() {
                       <td className="px-3 py-2 text-right">
                         {row.realizace ? (
                           row.marzeChybi ? (
-                            <span className="inline-block px-2 py-0.5 bg-amber-100 text-amber-700 text-xs font-bold rounded border border-amber-300" title="Klient nevyplnil hrubou marži">?</span>
+                            <span className="inline-block px-2 py-0.5 bg-amber-100 text-amber-700 text-xs font-bold rounded border border-amber-300" title="Marže nebyla vyplněna">?</span>
+                          ) : row.marze === 0 ? (
+                            <span className="inline-block px-2 py-0.5 bg-red-100 text-red-600 text-xs font-bold rounded border border-red-300" title="Marže je 0 — pravděpodobně ještě nevyplněna">0 Kč</span>
                           ) : (
                             <span className="font-semibold text-gray-800">{fmtKc(row.marze ?? 0)}</span>
                           )

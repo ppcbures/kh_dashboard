@@ -122,8 +122,12 @@ export default function DateRangePicker({ value, onChange }: DateRangePickerProp
               <input
                 type="date"
                 value={customStart}
-                max={customEnd}
-                onChange={(e) => setCustomStart(e.target.value)}
+                onChange={(e) => {
+                  const newStart = e.target.value;
+                  setCustomStart(newStart);
+                  // pokud je datum do menší než datum od, posuneme ho na datum od
+                  if (customEnd < newStart) setCustomEnd(newStart);
+                }}
                 className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <span className="text-gray-400 text-sm">–</span>

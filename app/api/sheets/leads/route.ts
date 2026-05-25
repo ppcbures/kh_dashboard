@@ -127,25 +127,34 @@ function parseOldRows(rows: string[][], startDate: string, endDate: string): Lea
   return leads;
 }
 
-/** Parse rows from new-format year sheets (2024/2025/2026) */
+/** Parse rows from new-format year sheets (2024/2025/2026).
+ *  Indexy sloupců detekuje dynamicky z headeru — různé roky mají různou strukturu:
+ *  - 2024/2025: …, Hrubá marže [7], Adresa [8], GA-zdroj [9], GA-kampaň [10]
+ *  - 2026+:     …, Hrubá marže [7], GA-zdroj [8], GA-kampaň [9], Cesta [10]
+ */
 function parseNewRows(
   rows: string[][],
   startDate: string,
   endDate: string,
   noDate: boolean
 ): LeadRow[] {
-  // Cols: 0=č.poptávky, 1=Datum(DD.M.YYYY or "SČ"), 2=Čas, 3=Příjmení a jméno,
-  //       4=Email, 5=Zdroj kontaktu, 6=Realizace, 7=Hrubá marže,
-  //       8=Adresa, 9=GA - zdroj, 10=GA - kampaň
+  if (rows.length < 2) return [];
+
+  // Detekce indexů z hlavičky
+  const header = rows[0].map(h => h.toLowerCase().trim());
+  const zdrojIdx  = header.findIndex(h => h.includes("ga") && h.includes("zdroj"));
+  const kampanIdx = header.findIndex(h => h.includes("ga") && h.includes("kamp"));
+  const colZdroj  = zdrojIdx  >= 0 ? zdrojIdx  : 9;  // fallback pro případ bez headeru
+  const colKampan = kampanIdx >= 0 ? kampanIdx : 10;
+
   const leads: LeadRow[] = [];
   for (const row of rows.slice(1)) {
     const id = (row[0] || "").trim();
-    if (!id || !id.includes("PK")) continue; // skip empty rows / month headers like "LEDEN"
+    if (!id || !id.includes("PK")) continue; // přeskočit prázdné řádky a nadpisy měsíců (LEDEN…)
 
     let dateOnly = "";
     if (noDate) {
-      // 2024 sheet: no reliable dates, include all rows, date shown as empty
-      dateOnly = "";
+      dateOnly = ""; // 2024 sheet: spolehlivé datum chybí, zahrnout vše
     } else {
       dateOnly = parseNewDate(row[1] || "");
       if (!dateOnly || dateOnly < startDate || dateOnly > endDate) continue;
@@ -156,18 +165,18 @@ function parseNewRows(
     const marze = parseMarze(row[7] || "");
     const marzeChybi = realizace && marze === null;
 
-    const zdrojRaw = (row[9] || "").trim();
+    const zdrojRaw = (row[colZdroj] || "").trim();
     const zdroj = zdrojRaw === "???" ? "" : zdrojRaw.split("/")[0].trim();
 
     leads.push({
       id,
       date: dateOnly,
-      name: (row[3] || "").split("\n")[0].trim(), // víceřádkové buňky — jen první řádek
+      name: (row[3] || "").split("\n")[0].trim(),
       realizace,
       marze,
       marzeChybi,
       zdroj,
-      kampan: row[10] || "",
+      kampan: (row[colKampan] || "").split("\n")[0].trim(),
     });
   }
   return leads;

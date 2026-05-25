@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import DateRangePicker from "@/components/DateRangePicker";
 import { useDateRange } from "@/contexts/DateRangeContext";
 
@@ -38,7 +38,8 @@ export default function OverviewPage() {
   const [loadingBudget, setLoadingBudget] = useState(false);
   const [loadingSpend,  setLoadingSpend]  = useState(false);
   const [loadingLeads,  setLoadingLeads]  = useState(false);
-  const [channelsOpen,  setChannelsOpen]  = useState(false);
+  const [channelsOpen,    setChannelsOpen]    = useState(false);
+  const [filterRealizace, setFilterRealizace] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -68,6 +69,9 @@ export default function OverviewPage() {
   const totalMarze  = leads?.stats.totalMarze ?? 0;
   const cpLead      = leadCount  > 0 ? Math.round(totalSpend / leadCount)  : 0;
   const cpReal      = realCount  > 0 ? Math.round(totalSpend / realCount)  : 0;
+  const displayedRows = filterRealizace
+    ? (leads?.rows ?? []).filter(r => r.realizace)
+    : (leads?.rows ?? []);
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -154,7 +158,32 @@ export default function OverviewPage() {
             ))}
           </div>
 
-          {/* Tabulka poptávek */}
+          {/* Filtr + tabulka poptávek */}
+          <div className="flex items-center gap-3 mb-2">
+            <button
+              onClick={() => setFilterRealizace(v => !v)}
+              className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold border transition-colors ${
+                filterRealizace
+                  ? "bg-green-600 border-green-600 text-white"
+                  : "bg-white border-gray-300 text-gray-600 hover:bg-gray-50"
+              }`}
+            >
+              <span className={`w-3.5 h-3.5 rounded-sm border-2 flex items-center justify-center ${filterRealizace ? "bg-white border-white" : "border-gray-400"}`}>
+                {filterRealizace && (
+                  <svg className="w-2.5 h-2.5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
+              </span>
+              Jen realizace
+            </button>
+            {filterRealizace && (
+              <span className="text-xs text-gray-400">
+                Zobrazeno {displayedRows.length} z {leads?.rows.length ?? 0} poptávek
+              </span>
+            )}
+          </div>
+
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
             <table className="w-full text-sm">
               <thead>
@@ -171,10 +200,12 @@ export default function OverviewPage() {
               <tbody>
                 {loadingLeads ? (
                   <tr><td colSpan={7} className="px-4 py-6 text-center text-gray-400"><Spinner /></td></tr>
-                ) : leads?.rows.length === 0 ? (
-                  <tr><td colSpan={7} className="px-4 py-6 text-center text-gray-400 text-sm">Žádné poptávky v daném období</td></tr>
+                ) : displayedRows.length === 0 ? (
+                  <tr><td colSpan={7} className="px-4 py-6 text-center text-gray-400 text-sm">
+                    {filterRealizace ? "Žádné realizace v daném období" : "Žádné poptávky v daném období"}
+                  </td></tr>
                 ) : (
-                  leads?.rows.map((row, i) => (
+                  displayedRows.map((row, i) => (
                     <tr key={i}
                       className={`border-b border-gray-100 transition-colors ${
                         row.realizace ? "bg-green-50 hover:bg-green-100" : "hover:bg-gray-50"

@@ -16,22 +16,40 @@ function sheetUrl(gid?: string) {
   return gid ? `${base}&gid=${gid}` : base;
 }
 
+/** Proper CSV parser — handles multiline quoted fields (cells with embedded newlines). */
 function parseCSV(text: string): string[][] {
   const rows: string[][] = [];
-  for (const line of text.split("\n")) {
-    if (!line.trim()) continue;
-    const fields: string[] = [];
-    let field = "";
-    let inQ = false;
-    for (let i = 0; i < line.length; i++) {
-      const ch = line[i];
-      if (ch === '"') { inQ = !inQ; }
-      else if (ch === "," && !inQ) { fields.push(field.trim()); field = ""; }
-      else { field += ch; }
+  let currentRow: string[] = [];
+  let field = "";
+  let inQ = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (ch === '"') {
+      if (inQ && text[i + 1] === '"') {
+        field += '"'; i++; // escaped double-quote inside quoted field
+      } else {
+        inQ = !inQ;
+      }
+    } else if (ch === "," && !inQ) {
+      currentRow.push(field.trim());
+      field = "";
+    } else if ((ch === "\n" || ch === "\r") && !inQ) {
+      if (ch === "\r" && text[i + 1] === "\n") i++; // consume CRLF as one
+      currentRow.push(field.trim());
+      field = "";
+      if (currentRow.some(f => f !== "")) {
+        rows.push(currentRow);
+      }
+      currentRow = [];
+    } else {
+      field += ch;
     }
-    fields.push(field.trim());
-    rows.push(fields);
   }
+  // Last row (no trailing newline)
+  currentRow.push(field.trim());
+  if (currentRow.some(f => f !== "")) rows.push(currentRow);
+
   return rows;
 }
 
@@ -108,7 +126,7 @@ function parseNewRows(
   const leads: LeadRow[] = [];
   for (const row of rows.slice(1)) {
     const id = (row[0] || "").trim();
-    if (!id || !id.startsWith("PK")) continue; // skip section headers like "LEDEN"
+    if (!id || !id.includes("PK")) continue; // skip empty rows / month headers like "LEDEN"
 
     let dateOnly = "";
     if (noDate) {
@@ -119,8 +137,8 @@ function parseNewRows(
       if (!dateOnly || dateOnly < startDate || dateOnly > endDate) continue;
     }
 
-    const realizaceRaw = (row[6] || "").trim().toUpperCase();
-    const realizace = realizaceRaw === "ANO";
+    const realizaceRaw = (row[6] || "").trim().toLowerCase();
+    const realizace = realizaceRaw === "ano";
     const rawMarze = (row[7] || "").trim();
     const marze =
       rawMarze && rawMarze !== "-" && !isNaN(parseFloat(rawMarze))

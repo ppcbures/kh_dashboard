@@ -7,7 +7,7 @@ import { signOut } from "next-auth/react";
 
 const navItems = [
   {
-    label: "Přehled",
+    label: "Hlavní přehled",
     href: "/dashboard/overview",
     icon: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

@@ -82,11 +82,20 @@ export interface LeadRow {
   id: string;
   date: string;         // YYYY-MM-DD (empty for 2024 no-date rows)
   name: string;
-  realizace: boolean;
+  realizace: string;    // "Ano" | "V řešení" | "Ne" | ""
   marze: number | null;
   marzeChybi: boolean;
   zdroj: string;
   kampan: string;
+}
+
+/** Normalizuje hodnotu realizace z buňky sheetu */
+function parseRealizace(raw: string): string {
+  const r = raw.toLowerCase().trim();
+  if (r === "ano") return "Ano";
+  if (r === "ne") return "Ne";
+  if (r.startsWith("v ř") || r.startsWith("v r") || r === "v řešení" || r === "v reseni") return "V řešení";
+  return "";
 }
 
 async function fetchCSV(url: string): Promise<string[][]> {
@@ -106,12 +115,11 @@ function parseOldRows(rows: string[][], startDate: string, endDate: string): Lea
     const dateOnly = rawDate.split(" ")[0]; // YYYY-MM-DD
     if (!dateOnly || dateOnly < startDate || dateOnly > endDate) continue;
 
-    const realizace = (row[9] || "").trim().toLowerCase() === "ano";
+    const realizace = parseRealizace(row[9] || "");
     const marze = parseMarze(row[10] || "");
-    const marzeChybi = realizace && marze === null;
+    const marzeChybi = realizace === "Ano" && marze === null;
 
-    const zdrojRaw = (row[6] || "").trim();
-    const zdroj = zdrojRaw.split("/")[0].trim();
+    const zdroj = (row[6] || "").trim();
 
     leads.push({
       id: row[1] || "",
@@ -142,9 +150,13 @@ function parseNewRows(
 
   // Detekce indexů z hlavičky
   const header = rows[0].map(h => h.toLowerCase().trim());
-  const zdrojIdx  = header.findIndex(h => h.includes("ga") && h.includes("zdroj"));
-  const kampanIdx = header.findIndex(h => h.includes("ga") && h.includes("kamp"));
-  const colZdroj  = zdrojIdx  >= 0 ? zdrojIdx  : 9;  // fallback pro případ bez headeru
+  const zdrojIdx  = header.findIndex(h =>
+    (h.includes("ga") && h.includes("zdroj")) || h === "zdroj" || h === "ga-zdroj" || h === "ga zdroj"
+  );
+  const kampanIdx = header.findIndex(h =>
+    (h.includes("ga") && h.includes("kamp")) || h === "kampaň" || h === "kampan" || h === "ga-kampaň"
+  );
+  const colZdroj  = zdrojIdx  >= 0 ? zdrojIdx  : 9;  // fallback
   const colKampan = kampanIdx >= 0 ? kampanIdx : 10;
 
   const leads: LeadRow[] = [];
@@ -160,13 +172,12 @@ function parseNewRows(
       if (!dateOnly || dateOnly < startDate || dateOnly > endDate) continue;
     }
 
-    const realizaceRaw = (row[6] || "").trim().toLowerCase();
-    const realizace = realizaceRaw === "ano";
+    const realizace = parseRealizace(row[6] || "");
     const marze = parseMarze(row[7] || "");
-    const marzeChybi = realizace && marze === null;
+    const marzeChybi = realizace === "Ano" && marze === null;
 
     const zdrojRaw = (row[colZdroj] || "").trim();
-    const zdroj = zdrojRaw === "???" ? "" : zdrojRaw.split("/")[0].trim();
+    const zdroj = zdrojRaw === "???" ? "" : zdrojRaw;
 
     leads.push({
       id,
@@ -235,9 +246,9 @@ export async function GET(req: NextRequest) {
       return an - bn;
     });
 
-    const realizaceCount = allLeads.filter(r => r.realizace).length;
+    const realizaceCount = allLeads.filter(r => r.realizace === "Ano").length;
     const totalMarze = allLeads
-      .filter(r => r.realizace && r.marze !== null)
+      .filter(r => r.realizace === "Ano" && r.marze !== null)
       .reduce((sum, r) => sum + (r.marze ?? 0), 0);
 
     return NextResponse.json({

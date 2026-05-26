@@ -9,7 +9,7 @@ interface BudgetData { planPro: string; google: Budget; seznam: Budget; facebook
 interface SpendData { facebook: number; google: number; seznam: number; bing: number; }
 interface LeadRow {
   id: string; date: string; name: string;
-  realizace: boolean; marze: number | null; marzeChybi: boolean;
+  realizace: string; marze: number | null; marzeChybi: boolean;
   zdroj: string; kampan: string;
 }
 interface LeadsData { rows: LeadRow[]; stats: { count: number; realizace: number; totalMarze: number }; }
@@ -41,7 +41,7 @@ export default function OverviewPage() {
   const [loadingSpend,  setLoadingSpend]  = useState(false);
   const [loadingLeads,  setLoadingLeads]  = useState(false);
   const [channelsOpen,    setChannelsOpen]    = useState(false);
-  const [filterRealizace, setFilterRealizace] = useState(false);
+  const [leadsFilter, setLeadsFilter] = useState<"all" | "realizace" | "v_reseni">("all");
   const [historyOpen,     setHistoryOpen]     = useState(false);
   const [history,         setHistory]         = useState<HistoryData | null>(null);
   const [loadingHistory,  setLoadingHistory]  = useState(false);
@@ -81,8 +81,10 @@ export default function OverviewPage() {
   const totalMarze  = leads?.stats.totalMarze ?? 0;
   const cpLead      = leadCount  > 0 ? Math.round(totalSpend / leadCount)  : 0;
   const cpReal      = realCount  > 0 ? Math.round(totalSpend / realCount)  : 0;
-  const displayedRows = filterRealizace
-    ? (leads?.rows ?? []).filter(r => r.realizace)
+  const displayedRows = leadsFilter === "realizace"
+    ? (leads?.rows ?? []).filter(r => r.realizace === "Ano")
+    : leadsFilter === "v_reseni"
+    ? (leads?.rows ?? []).filter(r => r.realizace === "V řešení")
     : (leads?.rows ?? []);
 
   return (
@@ -266,26 +268,29 @@ export default function OverviewPage() {
           </div>
 
           {/* Filtr + tabulka poptávek */}
-          <div className="flex items-center gap-3 mb-2">
+          <div className="flex items-center gap-2 mb-2">
             <button
-              onClick={() => setFilterRealizace(v => !v)}
-              className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold border transition-colors ${
-                filterRealizace
+              onClick={() => setLeadsFilter(f => f === "realizace" ? "all" : "realizace")}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold border transition-colors ${
+                leadsFilter === "realizace"
                   ? "bg-green-600 border-green-600 text-white"
                   : "bg-white border-gray-300 text-gray-600 hover:bg-gray-50"
               }`}
             >
-              <span className={`w-3.5 h-3.5 rounded-sm border-2 flex items-center justify-center ${filterRealizace ? "bg-white border-white" : "border-gray-400"}`}>
-                {filterRealizace && (
-                  <svg className="w-2.5 h-2.5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                  </svg>
-                )}
-              </span>
               Jen realizace
             </button>
-            {filterRealizace && (
-              <span className="text-xs text-gray-400">
+            <button
+              onClick={() => setLeadsFilter(f => f === "v_reseni" ? "all" : "v_reseni")}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold border transition-colors ${
+                leadsFilter === "v_reseni"
+                  ? "bg-orange-500 border-orange-500 text-white"
+                  : "bg-white border-gray-300 text-gray-600 hover:bg-gray-50"
+              }`}
+            >
+              V řešení
+            </button>
+            {leadsFilter !== "all" && (
+              <span className="text-xs text-gray-400 ml-1">
                 Zobrazeno {displayedRows.length} z {leads?.rows.length ?? 0} poptávek
               </span>
             )}
@@ -309,14 +314,16 @@ export default function OverviewPage() {
                   <tr><td colSpan={7} className="px-4 py-6 text-center text-gray-400"><Spinner /></td></tr>
                 ) : displayedRows.length === 0 ? (
                   <tr><td colSpan={7} className="px-4 py-6 text-center text-gray-400 text-sm">
-                    {filterRealizace ? "Žádné realizace v daném období" : "Žádné poptávky v daném období"}
+                    {leadsFilter !== "all" ? "Žádné záznamy pro vybraný filtr" : "Žádné poptávky v daném období"}
                   </td></tr>
                 ) : (
                   displayedRows.map((row, i) => (
                     <tr key={i}
                       className={`border-b border-gray-100 transition-colors ${
-                        row.realizace
+                        row.realizace === "Ano"
                           ? "bg-green-50 hover:bg-green-100"
+                          : row.realizace === "V řešení"
+                          ? "bg-orange-50 hover:bg-orange-100"
                           : i % 2 === 1 ? "bg-gray-50 hover:bg-gray-100" : "bg-white hover:bg-gray-50"
                       }`}
                     >
@@ -324,13 +331,18 @@ export default function OverviewPage() {
                       <td className="px-3 py-2 text-gray-600 whitespace-nowrap">{fmtDate(row.date)}</td>
                       <td className="px-3 py-2 font-medium text-gray-800">{row.name}</td>
                       <td className="px-3 py-2 text-center">
-                        {row.realizace
-                          ? <span className="inline-block px-2 py-0.5 bg-green-100 text-green-700 text-xs font-semibold rounded-full">Ano</span>
-                          : <span className="text-gray-300">—</span>
-                        }
+                        {row.realizace === "Ano" ? (
+                          <span className="inline-block px-2 py-0.5 bg-green-100 text-green-700 text-xs font-semibold rounded-full">Ano</span>
+                        ) : row.realizace === "V řešení" ? (
+                          <span className="inline-block px-2 py-0.5 bg-orange-100 text-orange-700 text-xs font-semibold rounded-full">V řešení</span>
+                        ) : row.realizace === "Ne" ? (
+                          <span className="inline-block px-2 py-0.5 bg-red-100 text-red-700 text-xs font-semibold rounded-full">Ne</span>
+                        ) : (
+                          <span className="text-gray-300">—</span>
+                        )}
                       </td>
                       <td className="px-3 py-2 text-right">
-                        {row.realizace ? (
+                        {row.realizace === "Ano" ? (
                           row.marzeChybi ? (
                             <span className="inline-block px-2 py-0.5 bg-amber-100 text-amber-700 text-xs font-bold rounded border border-amber-300" title="Marže nebyla vyplněna">?</span>
                           ) : row.marze === 0 ? (

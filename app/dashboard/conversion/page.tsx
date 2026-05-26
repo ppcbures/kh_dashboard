@@ -13,6 +13,7 @@ interface ConversionRow {
   userPath: string;
   formFullname: string;
   realizace: string;
+  hrubaMarze: string;
   users: number;
 }
 
@@ -448,6 +449,9 @@ export default function ConversionPage() {
                 <th className="px-4 py-3 text-left text-gray-600 font-semibold whitespace-nowrap">
                   Realizace
                 </th>
+                <th className="px-4 py-3 text-right text-gray-600 font-semibold whitespace-nowrap">
+                  Hrubá marže v Kč
+                </th>
                 {showName && (
                   <th className="px-4 py-3 text-left text-gray-600 font-semibold whitespace-nowrap">
                     Jméno zákazníka
@@ -502,6 +506,15 @@ export default function ConversionPage() {
                     ) : row.realizace === "Ne" ? (
                       <span className="text-xs px-2 py-1 rounded border font-medium bg-red-100 text-red-700 border-red-200">
                         Ne
+                      </span>
+                    ) : (
+                      <span className="text-gray-300 text-xs">—</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-right whitespace-nowrap">
+                    {row.realizace === "Ano" && row.hrubaMarze ? (
+                      <span className="font-semibold text-gray-800">
+                        {Number(row.hrubaMarze.replace(/[\s ]/g, "").replace(",", ".")).toLocaleString("cs-CZ")} Kč
                       </span>
                     ) : (
                       <span className="text-gray-300 text-xs">—</span>

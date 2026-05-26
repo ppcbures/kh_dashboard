@@ -4,6 +4,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
+import { useState } from "react";
+import HelpModal from "./HelpModal";
 
 const navItems = [
   {
@@ -50,60 +52,79 @@ const navItems = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const [helpOpen, setHelpOpen] = useState(false);
 
   return (
-    <aside className="w-64 h-screen bg-black text-white flex flex-col flex-shrink-0">
-      {/* Logo */}
-      <div className="px-4 py-4 border-b border-white/10">
-        <Link href="/dashboard/pages">
-          <div className="bg-white rounded-lg px-3 py-2 flex items-center justify-center">
-            <Image
-              src="https://klimatizace-hustopece.cz/wp-content/uploads/2021/03/Datovy-zdroj-2-300x54.png"
-              alt="Klimatizace Hustopeče"
-              width={180}
-              height={32}
-              className="object-contain"
-              unoptimized
-            />
-          </div>
-        </Link>
-      </div>
+    <>
+      <aside className="w-64 h-screen bg-black text-white flex flex-col flex-shrink-0">
+        {/* Logo */}
+        <div className="px-4 py-4 border-b border-white/10">
+          <Link href="/dashboard/overview">
+            <div className="bg-white rounded-lg px-3 py-2 flex items-center justify-center">
+              <Image
+                src="https://klimatizace-hustopece.cz/wp-content/uploads/2021/03/Datovy-zdroj-2-300x54.png"
+                alt="Klimatizace Hustopeče"
+                width={180}
+                height={32}
+                className="object-contain"
+                unoptimized
+              />
+            </div>
+          </Link>
+        </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 px-3 py-4 space-y-1">
-        {navItems.map((item) => {
-          const isActive = pathname === item.href || pathname.startsWith(item.href);
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-bold transition-colors ${
-                isActive
-                  ? "text-white"
-                  : "text-white hover:bg-white/10"
-              }`}
-              style={isActive ? { backgroundColor: "#e30613" } : {}}
-            >
-              {item.icon}
-              {item.label}
-            </Link>
-          );
-        })}
-      </nav>
+        {/* Navigation */}
+        <nav className="flex-1 px-3 py-4 space-y-1">
+          {navItems.map((item) => {
+            const isActive = pathname === item.href || pathname.startsWith(item.href);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-bold transition-colors ${
+                  isActive
+                    ? "text-white"
+                    : "text-white hover:bg-white/10"
+                }`}
+                style={isActive ? { backgroundColor: "#e30613" } : {}}
+              >
+                {item.icon}
+                {item.label}
+              </Link>
+            );
+          })}
+        </nav>
 
-      {/* Sign out */}
-      <div className="px-3 py-4 border-t border-white/10">
-        <button
-          onClick={() => signOut({ callbackUrl: "/login" })}
-          className="flex items-center gap-3 px-3 py-2.5 w-full rounded-lg text-sm font-medium text-white/50 hover:bg-white/10 hover:text-white transition-colors"
-        >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-              d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-          </svg>
-          Odhlásit se
-        </button>
-      </div>
-    </aside>
+        {/* Bottom buttons */}
+        <div className="px-3 py-4 border-t border-white/10 space-y-1">
+          {/* Nápověda */}
+          <button
+            onClick={() => setHelpOpen(true)}
+            className="flex items-center gap-3 px-3 py-2.5 w-full rounded-lg text-sm font-medium text-white/50 hover:bg-white/10 hover:text-white transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Nápověda
+          </button>
+
+          {/* Odhlásit se */}
+          <button
+            onClick={() => signOut({ callbackUrl: "/login" })}
+            className="flex items-center gap-3 px-3 py-2.5 w-full rounded-lg text-sm font-medium text-white/50 hover:bg-white/10 hover:text-white transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+            Odhlásit se
+          </button>
+        </div>
+      </aside>
+
+      {/* Help modal */}
+      {helpOpen && <HelpModal onClose={() => setHelpOpen(false)} />}
+    </>
   );
 }

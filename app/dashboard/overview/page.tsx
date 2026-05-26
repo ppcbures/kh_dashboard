@@ -269,6 +269,9 @@ export default function OverviewPage() {
             )}
           </div>
 
+          {/* Nadpis sekce */}
+          <h2 className="text-base font-bold text-gray-800 mb-3">Poptávky</h2>
+
           {/* Filtr + tabulka poptávek */}
           <div className="flex items-center gap-4 mb-2">
             <label className="flex items-center gap-2 cursor-pointer select-none">

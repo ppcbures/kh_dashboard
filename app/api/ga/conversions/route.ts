@@ -125,7 +125,7 @@ export async function GET(req: NextRequest) {
         },
       }),
 
-      // R4 (9 dims): date, event, cesta_1..3, pagePath, form_fullname, realizace, hruba_marze
+      // R4 (7 dims): date, event, cesta_1..3, pagePath, form_fullname
       ga.properties.runReport({
         property,
         requestBody: {
@@ -138,8 +138,6 @@ export async function GET(req: NextRequest) {
             { name: "customEvent:cesta_3" },
             { name: "pagePath" },
             { name: "customEvent:form_fullname" },
-            { name: "customEvent:realizace" },
-            { name: "customEvent:hruba_marze" },
           ],
           metrics: [{ name: "totalUsers" }],
           dimensionFilter: baseFilter,
@@ -151,7 +149,7 @@ export async function GET(req: NextRequest) {
     // --- Sestavení join map ---
     type Ext2 = { c8: string; c9: string; c10: string; c11: string };
     type Ext3 = { c12: string; c13: string; c14: string; c15: string };
-    type Ext4 = { pagePath: string; formFullname: string; realizace: string; hrubaMarze: string; users: number };
+    type Ext4 = { pagePath: string; formFullname: string; users: number };
 
     const map2 = new Map<string, Ext2>();
     for (const row of r2.data.rows || []) {
@@ -176,8 +174,6 @@ export async function GET(req: NextRequest) {
       const entry: Ext4 = {
         pagePath:     val(row, 5),
         formFullname: val(row, 6),
-        realizace:    val(row, 7),
-        hrubaMarze:   val(row, 8),
         users:        parseInt(row.metricValues?.[0]?.value || "0"),
       };
       const arr = map4raw.get(key);
@@ -207,8 +203,8 @@ export async function GET(req: NextRequest) {
         eventName,
         conversionPage: ext4?.pagePath     || "",
         formFullname:   ext4?.formFullname || "",
-        realizace:      ext4?.realizace    || "",
-        hrubaMarze:     ext4?.hrubaMarze   || "",
+        realizace:      "",
+        hrubaMarze:     "",
         userPath: buildPath([
           c1, c2, c3, c4, c5, c6, c7,
           ext2?.c8,  ext2?.c9,  ext2?.c10, ext2?.c11,

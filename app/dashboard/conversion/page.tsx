@@ -45,6 +45,21 @@ const EVENT_COLORS: Record<string, string> = {
   contact_copy_email:  "bg-violet-100 text-violet-800 border-violet-200",
 };
 
+function Tooltip({ text }: { text: string }) {
+  return (
+    <span
+      className="group relative inline-flex items-center justify-center w-4 h-4 rounded-full bg-gray-300 text-white text-[10px] font-bold cursor-default leading-none ml-1 align-middle"
+      onClick={e => e.stopPropagation()}
+    >
+      ?
+      <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover:block w-52 rounded-lg bg-gray-800 text-white text-xs px-2.5 py-1.5 shadow-lg z-50 leading-snug text-center">
+        {text}
+        <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-800" />
+      </span>
+    </span>
+  );
+}
+
 function SortIcon({ dir }: { dir: "asc" | "desc" }) {
   return (
     <svg className="w-3.5 h-3.5 inline ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -299,16 +314,7 @@ export default function ConversionPage() {
             <input type="checkbox" checked={showName} onChange={e => setShowName(e.target.checked)}
               className="w-3.5 h-3.5 rounded accent-red-600" />
             <span className="text-xs text-gray-700">Jméno zákazníka</span>
-            <span
-              className="group relative flex items-center justify-center w-4 h-4 rounded-full bg-gray-300 text-white text-[10px] font-bold cursor-default leading-none"
-              title="Zobrazuje se pouze při odeslaném formuláři"
-            >
-              ?
-              <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover:block w-52 rounded-lg bg-gray-800 text-white text-xs px-2.5 py-1.5 shadow-lg z-50 leading-snug text-center">
-                Zobrazuje se pouze při odeslaném formuláři
-                <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-800" />
-              </span>
-            </span>
+            <Tooltip text="Zobrazuje se pouze při odeslaném formuláři" />
           </label>
         </div>
       </div>
@@ -349,7 +355,9 @@ export default function ConversionPage() {
                   </th>
                 )}
                 <th className={thClass} onClick={() => handleSort("eventName")}>
-                  Název události {sortKey === "eventName" && <SortIcon dir={sortDir} />}
+                  Název události
+                  <Tooltip text="Řazení dle názvu události (A–Z nebo Z–A)" />
+                  {sortKey === "eventName" && <SortIcon dir={sortDir} />}
                 </th>
                 <th className={thClass} onClick={() => handleSort("conversionPage")}>
                   Konverzní stránka {sortKey === "conversionPage" && <SortIcon dir={sortDir} />}
@@ -360,7 +368,9 @@ export default function ConversionPage() {
                   </th>
                 )}
                 <th className={thClass} onClick={() => handleSort("userPath")}>
-                  Cesta uživatele {sortKey === "userPath" && <SortIcon dir={sortDir} />}
+                  Cesta uživatele
+                  <Tooltip text="Řazení dle počtu uživatelů, kteří prošli danou cestou" />
+                  {sortKey === "userPath" && <SortIcon dir={sortDir} />}
                 </th>
                 <th className="px-4 py-3 text-right text-gray-600 font-semibold whitespace-nowrap">
                   Počet uživatelů

@@ -78,7 +78,9 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ rows });
   } catch (error) {
-    console.error("Conversions API error:", error);
-    return NextResponse.json({ error: String(error) }, { status: 500 });
+    const msg = error instanceof Error ? error.message : String(error);
+    const detail = (error as { errors?: unknown })?.errors;
+    console.error("Conversions API error:", msg, detail);
+    return NextResponse.json({ error: msg, detail }, { status: 500 });
   }
 }

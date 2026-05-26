@@ -36,6 +36,7 @@ export default function ConversionPage() {
   const [rows, setRows] = useState<ConversionRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorDetail, setErrorDetail] = useState<string | null>(null);
 
   const [showDate, setShowDate] = useState(false);
   const [showName, setShowName] = useState(false);
@@ -80,11 +81,15 @@ export default function ConversionPage() {
         `/api/ga/conversions?propertyId=${encodeURIComponent(selectedProperty)}&startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`,
         { headers: { Authorization: `Bearer ${accessToken}` } }
       );
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
+      if (!res.ok) {
+        setErrorDetail(data.detail ? JSON.stringify(data.detail) : null);
+        throw new Error(data.error || `HTTP ${res.status}`);
+      }
       setRows(data.rows || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Chyba načítání dat");
+      setErrorDetail(null);
     } finally {
       setLoading(false);
     }
@@ -228,6 +233,9 @@ export default function ConversionPage() {
           <div className="flex flex-col items-center justify-center h-full gap-2">
             <p className="text-red-500 text-sm font-medium">Nepodařilo se načíst data</p>
             <p className="text-gray-400 text-xs">{error}</p>
+            {errorDetail && (
+              <p className="text-gray-300 text-xs max-w-md break-all mt-1">{errorDetail}</p>
+            )}
             <button
               onClick={fetchData}
               className="mt-2 px-4 py-2 text-xs bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-600 transition-colors"

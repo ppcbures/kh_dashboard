@@ -41,7 +41,8 @@ export default function OverviewPage() {
   const [loadingSpend,  setLoadingSpend]  = useState(false);
   const [loadingLeads,  setLoadingLeads]  = useState(false);
   const [channelsOpen,    setChannelsOpen]    = useState(false);
-  const [leadsFilter, setLeadsFilter] = useState<"all" | "realizace" | "v_reseni">("all");
+  const [filterAno,     setFilterAno]     = useState(false);
+  const [filterVReseni, setFilterVReseni] = useState(false);
   const [historyOpen,     setHistoryOpen]     = useState(false);
   const [history,         setHistory]         = useState<HistoryData | null>(null);
   const [loadingHistory,  setLoadingHistory]  = useState(false);
@@ -81,10 +82,11 @@ export default function OverviewPage() {
   const totalMarze  = leads?.stats.totalMarze ?? 0;
   const cpLead      = leadCount  > 0 ? Math.round(totalSpend / leadCount)  : 0;
   const cpReal      = realCount  > 0 ? Math.round(totalSpend / realCount)  : 0;
-  const displayedRows = leadsFilter === "realizace"
-    ? (leads?.rows ?? []).filter(r => r.realizace === "Ano")
-    : leadsFilter === "v_reseni"
-    ? (leads?.rows ?? []).filter(r => r.realizace === "V řešení")
+  const displayedRows = (filterAno || filterVReseni)
+    ? (leads?.rows ?? []).filter(r =>
+        (filterAno && r.realizace === "Ano") ||
+        (filterVReseni && r.realizace === "V řešení")
+      )
     : (leads?.rows ?? []);
 
   return (
@@ -102,9 +104,9 @@ export default function OverviewPage() {
           <p className="text-xs text-gray-400 mb-3">Plán pro {budget?.planPro ?? "…"}</p>
           <div className="grid grid-cols-3 gap-4 mb-3">
             {[
-              { label: "Celkem rozpočet",                          value: totalBudget, loading: loadingBudget },
-              { label: "Celkem ideální útrata (ke včerejšímu dni)", value: totalIdeal,  loading: loadingBudget },
-              { label: "Celková útrata za vybrané datum",           value: totalSpend,  loading: loadingSpend  },
+              { label: `Celkem rozpočet pro ${budget?.planPro ?? "…"}`,    value: totalBudget, loading: loadingBudget },
+              { label: "Ideální útrata ke včerejšímu dni",              value: totalIdeal,  loading: loadingBudget },
+              { label: "Aktuální útrata za vybrané datum",              value: totalSpend,  loading: loadingSpend  },
             ].map(c => (
               <div key={c.label} className="bg-white rounded-xl border border-gray-200 p-4">
                 <p className="text-xs text-gray-500 font-medium mb-1">{c.label}</p>
@@ -128,9 +130,9 @@ export default function OverviewPage() {
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-200">
                     <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500">Kanál</th>
-                    <th className="text-right px-4 py-2 text-xs font-semibold text-gray-500">Rozpočet</th>
-                    <th className="text-right px-4 py-2 text-xs font-semibold text-gray-500">Ideální útrata</th>
-                    <th className="text-right px-4 py-2 text-xs font-semibold text-gray-500">Aktuální útrata</th>
+                    <th className="text-right px-4 py-2 text-xs font-semibold text-gray-500">Rozpočet pro {budget?.planPro ?? "…"}</th>
+                    <th className="text-right px-4 py-2 text-xs font-semibold text-gray-500">Ideální útrata ke včerejšímu dni</th>
+                    <th className="text-right px-4 py-2 text-xs font-semibold text-gray-500">Aktuální útrata za vybrané datum</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -268,29 +270,27 @@ export default function OverviewPage() {
           </div>
 
           {/* Filtr + tabulka poptávek */}
-          <div className="flex items-center gap-2 mb-2">
-            <button
-              onClick={() => setLeadsFilter(f => f === "realizace" ? "all" : "realizace")}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold border transition-colors ${
-                leadsFilter === "realizace"
-                  ? "bg-green-600 border-green-600 text-white"
-                  : "bg-white border-gray-300 text-gray-600 hover:bg-gray-50"
-              }`}
-            >
-              Jen realizace
-            </button>
-            <button
-              onClick={() => setLeadsFilter(f => f === "v_reseni" ? "all" : "v_reseni")}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold border transition-colors ${
-                leadsFilter === "v_reseni"
-                  ? "bg-orange-500 border-orange-500 text-white"
-                  : "bg-white border-gray-300 text-gray-600 hover:bg-gray-50"
-              }`}
-            >
-              V řešení
-            </button>
-            {leadsFilter !== "all" && (
-              <span className="text-xs text-gray-400 ml-1">
+          <div className="flex items-center gap-4 mb-2">
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={filterAno}
+                onChange={e => setFilterAno(e.target.checked)}
+                className="w-3.5 h-3.5 rounded accent-green-600"
+              />
+              <span className="text-sm font-semibold text-gray-700">Realizace</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={filterVReseni}
+                onChange={e => setFilterVReseni(e.target.checked)}
+                className="w-3.5 h-3.5 rounded accent-orange-500"
+              />
+              <span className="text-sm font-semibold text-gray-700">V řešení</span>
+            </label>
+            {(filterAno || filterVReseni) && (
+              <span className="text-xs text-gray-400">
                 Zobrazeno {displayedRows.length} z {leads?.rows.length ?? 0} poptávek
               </span>
             )}
@@ -314,7 +314,7 @@ export default function OverviewPage() {
                   <tr><td colSpan={7} className="px-4 py-6 text-center text-gray-400"><Spinner /></td></tr>
                 ) : displayedRows.length === 0 ? (
                   <tr><td colSpan={7} className="px-4 py-6 text-center text-gray-400 text-sm">
-                    {leadsFilter !== "all" ? "Žádné záznamy pro vybraný filtr" : "Žádné poptávky v daném období"}
+                    {(filterAno || filterVReseni) ? "Žádné záznamy pro vybraný filtr" : "Žádné poptávky v daném období"}
                   </td></tr>
                 ) : (
                   displayedRows.map((row, i) => (

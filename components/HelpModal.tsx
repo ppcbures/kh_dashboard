@@ -81,7 +81,8 @@ const content: Record<Section, React.ReactNode> = {
       <H2>Hlavní přehled</H2>
       <P>
         Centrální přehled marketingových výsledků za vybrané časové období. Data jsou
-        kombinací Google Ads (výdaje, kampaně) a interní evidence poptávek z Google Sheets.
+        kombinací rozpočtového plánu (Google Sheets), výdajů za reklamu (Google Sheets)
+        a interní evidence poptávek (Google Sheets).
       </P>
 
       <H3>Výběr období</H3>
@@ -91,21 +92,42 @@ const content: Record<Section, React.ReactNode> = {
         období se ukládá a sdílí napříč všemi kartami dashboardu.
       </P>
 
-      <H3>KPI karty</H3>
+      <H3>Karty rozpočtu</H3>
+      <P>
+        Tři karty zobrazují plnění měsíčního plánu. Plán se automaticky načítá
+        z Google Sheets a vždy odráží aktuální měsíc (např. <em>Plán pro Květen 2026</em>).
+      </P>
       <Ul>
-        <Li><strong>Útrata</strong> – celkové výdaje na Google Ads za dané období</Li>
-        <Li><strong>Počet poptávek</strong> – celkový počet přijatých poptávek</Li>
-        <Li><strong>Cena za poptávku</strong> – útrata děleno počtem poptávek</Li>
-        <Li><strong>Počet realizací</strong> – poptávky, které se proměnily v zakázku</Li>
-        <Li><strong>Cena za realizaci</strong> – útrata děleno počtem realizací</Li>
-        <Li><strong>Hrubá marže</strong> – součet marží ze všech realizovaných zakázek</Li>
+        <Li><strong>Celkem rozpočet</strong> – celkový měsíční plán výdajů na reklamu (součet za všechny kanály)</Li>
+        <Li><strong>Ideální útrata ke včerejšímu dni</strong> – přepočtená ideální výše výdajů k včerejšímu datu; vypočítáno v sheetu jako poměrná část měsíčního rozpočtu</Li>
+        <Li><strong>Aktuální útrata za vybrané datum</strong> – skutečné výdaje za zvolené období z reklamních systémů</Li>
       </Ul>
 
       <H3>Útrata dle kanálů</H3>
       <P>
-        Tabulka rozpadá celkovou útratu dle marketingového kanálu (Search, Display,
-        Performance Max…) s podílem každého kanálu na celku.
+        Rozklikávací tabulka pod kartami rozpočtu rozpadá výdaje dle reklamního kanálu.
+        Každý řádek odpovídá jednomu kanálu a zobrazuje tři hodnoty:
       </P>
+      <Ul>
+        <Li><strong>Google Ads (google / cpc, google / display…)</strong> – výdaje v Google reklamním systému</Li>
+        <Li><strong>Sklik (seznam / cpc…)</strong> – výdaje v Sklik reklamním systému</Li>
+        <Li><strong>Facebook (facebook / paid…)</strong> – výdaje na Facebooku / Instagramu</Li>
+        <Li><strong>Bing (bing / cpc…)</strong> – výdaje na Microsoft Bing Ads</Li>
+      </Ul>
+      <P>
+        Sloupce: <strong>Rozpočet</strong> (měsíční plán z sheetu) ·{" "}
+        <strong>Ideální útrata</strong> (přepočtená ke včerejšímu dni z sheetu) ·{" "}
+        <strong>Aktuální útrata</strong> (skutečné výdaje za vybrané datum).
+      </P>
+
+      <H3>Karty poptávek a realizací</H3>
+      <Ul>
+        <Li><strong>Počet poptávek</strong> – celkový počet přijatých poptávek za vybrané období</Li>
+        <Li><strong>Cena za poptávku</strong> – celková útrata děleno počtem poptávek</Li>
+        <Li><strong>Počet realizací</strong> – poptávky, které se proměnily v zakázku (sloupec Realizace = ANO)</Li>
+        <Li><strong>Cena za realizaci</strong> – celková útrata děleno počtem realizací</Li>
+        <Li><strong>Hrubá marže</strong> – součet marží ze všech realizovaných zakázek</Li>
+      </Ul>
 
       <H3>Tabulka poptávek</H3>
       <P>
@@ -113,10 +135,11 @@ const content: Record<Section, React.ReactNode> = {
         Řazení je vzestupné dle čísla PK.
       </P>
       <Ul>
-        <Li><strong>Přepínač „Jen realizace"</strong> – zobrazí pouze poptávky s hodnotou ANO ve sloupci Realizace</Li>
-        <Li><strong>Marže 0 Kč</strong> – červeně zvýrazněná hodnota znamená, že marže ještě nebyla doplněna</Li>
-        <Li><strong>Marže ?</strong> – oranžová otazník znamená prázdnou nebo chybějící hodnotu marže</Li>
-        <Li><strong>GA zdroj / GA kampaň</strong> – odkud zákazník přišel dle Google Analytics</Li>
+        <Li><strong>Přepínač „Jen realizace"</strong> – zobrazí pouze poptávky označené jako realizace (Realizace = ANO)</Li>
+        <Li><strong>GA zdroj</strong> – zdroj zákazníka dle Google Analytics ve formátu <em>zdroj / médium</em>, např. <code className="bg-gray-100 px-1 rounded text-xs">google / cpc</code>, <code className="bg-gray-100 px-1 rounded text-xs">facebook / paid</code>, <code className="bg-gray-100 px-1 rounded text-xs">seznam / cpc</code></Li>
+        <Li><strong>GA kampaň</strong> – název kampaně, ze které zákazník přišel</Li>
+        <Li><strong>Marže 0 Kč</strong> – červeně zvýrazněná hodnota znamená, že marže ještě nebyla doplněna do sheetu</Li>
+        <Li><strong>Marže ?</strong> – oranžový otazník znamená prázdnou nebo chybějící hodnotu marže</Li>
       </Ul>
 
       <H3>Historické výsledky</H3>

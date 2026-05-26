@@ -145,6 +145,7 @@ export default function PagesAnalysis() {
   const [search, setSearch] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [sortBy, setSortBy] = useState<GaSortKey>("views");
+  const [topPage, setTopPage] = useState(0);
 
   const accessToken = (session as { accessToken?: string })?.accessToken;
 
@@ -311,6 +312,24 @@ export default function PagesAnalysis() {
     }
   }, [accessToken, selectedProperty, dateRange]);
 
+  // Reset stránkování při nových datech
+  useEffect(() => { setTopPage(0); }, [pages]);
+
+  const METRIC_LABEL: Record<GaSortKey, string> = {
+    views: "zobrazení", sessions: "relací", users: "uživatelů",
+    avgDuration: "prům. doba", bounceRate: "odchod",
+  };
+
+  function formatMetric(page: PageRow, key: GaSortKey): string {
+    switch (key) {
+      case "views":       return formatNumber(page.views);
+      case "sessions":    return formatNumber(page.sessions);
+      case "users":       return formatNumber(page.users);
+      case "avgDuration": return formatDuration(page.avgDuration);
+      case "bounceRate":  return `${(page.bounceRate * 100).toFixed(1)} %`;
+    }
+  }
+
   const filteredPages = pages
     .filter(
       (p) =>
@@ -458,9 +477,14 @@ export default function PagesAnalysis() {
                         {page.pageTitle}
                       </p>
                       <div className="flex gap-3 mt-1.5">
-                        <span className="text-xs text-gray-600">
-                          <span className="font-semibold">{formatNumber(page.views)}</span> zobrazení
+                        <span className="text-xs text-gray-700">
+                          <span className="font-semibold">{formatMetric(page, sortBy)}</span> {METRIC_LABEL[sortBy]}
                         </span>
+                        {sortBy !== "views" && (
+                          <span className="text-xs text-gray-400">
+                            {formatNumber(page.views)} zobr.
+                          </span>
+                        )}
                       </div>
                     </button>
                   ))
@@ -500,8 +524,11 @@ export default function PagesAnalysis() {
                 const totalUsers    = pages.reduce((s, p) => s + p.users, 0);
                 const avgBounce     = pages.reduce((s, p) => s + p.bounceRate, 0) / pages.length;
                 const avgDur        = pages.reduce((s, p) => s + p.avgDuration, 0) / pages.length;
-                const top10         = [...pages].sort((a, b) => b.views - a.views).slice(0, 10);
-                const maxViews      = top10[0]?.views || 1;
+                const TOP_PAGE_SIZE = 10;
+                const sortedAll     = [...pages].sort((a, b) => b.views - a.views);
+                const maxViews      = sortedAll[0]?.views || 1;
+                const totalTopPages = Math.ceil(sortedAll.length / TOP_PAGE_SIZE);
+                const top10         = sortedAll.slice(topPage * TOP_PAGE_SIZE, (topPage + 1) * TOP_PAGE_SIZE);
 
                 return (
                   <div className="space-y-6">
@@ -580,8 +607,27 @@ export default function PagesAnalysis() {
                             ))}
                           </tbody>
                         </table>
-                        <div className="px-4 py-2 bg-gray-50 border-t border-gray-100 text-xs text-gray-400">
-                          Kliknutím na řádek zobrazíte detail stránky · Celkem {pages.length} stránek ve výpisu vlevo
+                        <div className="px-4 py-2 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
+                          <span className="text-xs text-gray-400">
+                            Kliknutím na řádek zobrazíte detail · Celkem {pages.length} stránek
+                          </span>
+                          {totalTopPages > 1 && (
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => setTopPage(p => Math.max(0, p - 1))}
+                                disabled={topPage === 0}
+                                className="px-2 py-1 text-xs rounded border border-gray-300 bg-white hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                              >‹ Předchozí</button>
+                              <span className="text-xs text-gray-500">
+                                {topPage + 1} / {totalTopPages}
+                              </span>
+                              <button
+                                onClick={() => setTopPage(p => Math.min(totalTopPages - 1, p + 1))}
+                                disabled={topPage >= totalTopPages - 1}
+                                className="px-2 py-1 text-xs rounded border border-gray-300 bg-white hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                              >Další ›</button>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>

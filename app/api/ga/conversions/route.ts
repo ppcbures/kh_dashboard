@@ -212,7 +212,10 @@ export async function GET(req: NextRequest) {
       };
     });
 
-    return NextResponse.json({ rows });
+    // Vyfiltrovat kariérní stránky — nejde o byznysové konverze
+    const filtered = rows.filter(r => !r.conversionPage.includes("/kariera/"));
+
+    return NextResponse.json({ rows: filtered });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     console.error("Conversions API error:", msg);

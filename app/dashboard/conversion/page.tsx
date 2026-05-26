@@ -19,7 +19,7 @@ interface GroupedRow extends ConversionRow {
   count: number;
 }
 
-type SortKey = "date" | "eventName" | "conversionPage" | "userPath";
+type SortKey = "date" | "eventName" | "conversionPage" | "userPath" | "users";
 
 const ALL_EVENTS = [
   "generate_lead",
@@ -275,10 +275,11 @@ export default function ConversionPage() {
     list.sort((a, b) => {
       let cmp = 0;
       switch (sortKey) {
-        case "date":        cmp = a.dateRaw.localeCompare(b.dateRaw); break;
-        case "eventName":   cmp = (EVENT_LABELS[a.eventName] || a.eventName).localeCompare(EVENT_LABELS[b.eventName] || b.eventName); break;
+        case "date":           cmp = a.dateRaw.localeCompare(b.dateRaw); break;
+        case "eventName":      cmp = (EVENT_LABELS[a.eventName] || a.eventName).localeCompare(EVENT_LABELS[b.eventName] || b.eventName); break;
         case "conversionPage": cmp = a.conversionPage.localeCompare(b.conversionPage); break;
-        case "userPath":    cmp = a.users - b.users; break;
+        case "userPath":       cmp = (a.userPath ? a.userPath.split(" - ").length : 0) - (b.userPath ? b.userPath.split(" - ").length : 0); break;
+        case "users":          cmp = a.users - b.users; break;
       }
       return sortDir === "asc" ? cmp : -cmp;
     });
@@ -426,11 +427,12 @@ export default function ConversionPage() {
                 )}
                 <th className={thClass} onClick={() => handleSort("userPath")}>
                   Cesta uživatele
-                  <Tooltip text="Řazení dle počtu uživatelů, kteří prošli danou cestou" />
+                  <Tooltip text="Řazení dle počtu kroků v cestě uživatele (od nejkratší po nejdelší a naopak)" />
                   {sortKey === "userPath" && <SortIcon dir={sortDir} />}
                 </th>
-                <th className="px-4 py-3 text-right text-gray-600 font-semibold whitespace-nowrap">
+                <th className={thClass} style={{ textAlign: "right" }} onClick={() => handleSort("users")}>
                   Počet uživatelů
+                  {sortKey === "users" && <SortIcon dir={sortDir} />}
                 </th>
               </tr>
             </thead>

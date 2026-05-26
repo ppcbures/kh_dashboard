@@ -93,7 +93,7 @@ export interface LeadRow {
 function parseRealizace(raw: string): string {
   const r = raw.toLowerCase().trim();
   if (r === "ano") return "Ano";
-  if (r === "ne") return "Ne";
+  if (r === "ne" || r === "nevyšlo" || r === "nevyslo") return "Nevyšlo";
   if (r.startsWith("v ř") || r.startsWith("v r") || r === "v řešení" || r === "v reseni") return "V řešení";
   return "";
 }
@@ -176,8 +176,7 @@ function parseNewRows(
     const marze = parseMarze(row[7] || "");
     const marzeChybi = realizace === "Ano" && marze === null;
 
-    const zdrojRaw = (row[colZdroj] || "").trim();
-    const zdroj = zdrojRaw === "???" ? "" : zdrojRaw;
+    const zdroj = (row[colZdroj] || "").trim();
 
     leads.push({
       id,

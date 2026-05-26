@@ -41,8 +41,9 @@ export default function OverviewPage() {
   const [loadingSpend,  setLoadingSpend]  = useState(false);
   const [loadingLeads,  setLoadingLeads]  = useState(false);
   const [channelsOpen,    setChannelsOpen]    = useState(false);
-  const [filterAno,     setFilterAno]     = useState(false);
-  const [filterVReseni, setFilterVReseni] = useState(false);
+  const [filterAno,      setFilterAno]      = useState(false);
+  const [filterVReseni,  setFilterVReseni]  = useState(false);
+  const [filterNevyslo,  setFilterNevyslo]  = useState(false);
   const [historyOpen,     setHistoryOpen]     = useState(false);
   const [history,         setHistory]         = useState<HistoryData | null>(null);
   const [loadingHistory,  setLoadingHistory]  = useState(false);
@@ -82,10 +83,11 @@ export default function OverviewPage() {
   const totalMarze  = leads?.stats.totalMarze ?? 0;
   const cpLead      = leadCount  > 0 ? Math.round(totalSpend / leadCount)  : 0;
   const cpReal      = realCount  > 0 ? Math.round(totalSpend / realCount)  : 0;
-  const displayedRows = (filterAno || filterVReseni)
+  const displayedRows = (filterAno || filterVReseni || filterNevyslo)
     ? (leads?.rows ?? []).filter(r =>
-        (filterAno && r.realizace === "Ano") ||
-        (filterVReseni && r.realizace === "V řešení")
+        (filterAno     && r.realizace === "Ano") ||
+        (filterVReseni && r.realizace === "V řešení") ||
+        (filterNevyslo && r.realizace === "Nevyšlo")
       )
     : (leads?.rows ?? []);
 
@@ -292,7 +294,16 @@ export default function OverviewPage() {
               />
               <span className="text-sm font-semibold text-gray-700">V řešení</span>
             </label>
-            {(filterAno || filterVReseni) && (
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={filterNevyslo}
+                onChange={e => setFilterNevyslo(e.target.checked)}
+                className="w-3.5 h-3.5 rounded accent-red-500"
+              />
+              <span className="text-sm font-semibold text-gray-700">Nevyšlo</span>
+            </label>
+            {(filterAno || filterVReseni || filterNevyslo) && (
               <span className="text-xs text-gray-400">
                 Zobrazeno {displayedRows.length} z {leads?.rows.length ?? 0} poptávek
               </span>
@@ -317,7 +328,7 @@ export default function OverviewPage() {
                   <tr><td colSpan={7} className="px-4 py-6 text-center text-gray-400"><Spinner /></td></tr>
                 ) : displayedRows.length === 0 ? (
                   <tr><td colSpan={7} className="px-4 py-6 text-center text-gray-400 text-sm">
-                    {(filterAno || filterVReseni) ? "Žádné záznamy pro vybraný filtr" : "Žádné poptávky v daném období"}
+                    {(filterAno || filterVReseni || filterNevyslo) ? "Žádné záznamy pro vybraný filtr" : "Žádné poptávky v daném období"}
                   </td></tr>
                 ) : (
                   displayedRows.map((row, i) => (
@@ -338,8 +349,8 @@ export default function OverviewPage() {
                           <span className="inline-block px-2 py-0.5 bg-green-100 text-green-700 text-xs font-semibold rounded-full">Ano</span>
                         ) : row.realizace === "V řešení" ? (
                           <span className="inline-block px-2 py-0.5 bg-orange-100 text-orange-700 text-xs font-semibold rounded-full">V řešení</span>
-                        ) : row.realizace === "Ne" ? (
-                          <span className="inline-block px-2 py-0.5 bg-red-100 text-red-700 text-xs font-semibold rounded-full">Ne</span>
+                        ) : row.realizace === "Nevyšlo" ? (
+                          <span className="inline-block px-2 py-0.5 bg-red-100 text-red-700 text-xs font-semibold rounded-full">Nevyšlo</span>
                         ) : (
                           <span className="text-gray-300">—</span>
                         )}
@@ -357,7 +368,12 @@ export default function OverviewPage() {
                           <span className="text-gray-300">—</span>
                         )}
                       </td>
-                      <td className="px-3 py-2 text-gray-600 text-xs">{row.zdroj || "—"}</td>
+                      <td className="px-3 py-2 text-xs">
+                        {row.zdroj === "???"
+                          ? <span className="text-gray-400 italic" title="Pokus o spárování se nezdařil">???</span>
+                          : <span className="text-gray-600">{row.zdroj || "—"}</span>
+                        }
+                      </td>
                       <td className="px-3 py-2 text-gray-500 text-xs max-w-[200px] truncate" title={row.kampan}>{row.kampan || "—"}</td>
                     </tr>
                   ))

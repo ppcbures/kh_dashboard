@@ -52,9 +52,9 @@ function Tooltip({ text }: { text: string }) {
       onClick={e => e.stopPropagation()}
     >
       ?
-      <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover:block w-52 rounded-lg bg-gray-800 text-white text-xs px-2.5 py-1.5 shadow-lg z-50 leading-snug text-center">
+      <span className="pointer-events-none absolute top-full left-1/2 -translate-x-1/2 mt-1.5 hidden group-hover:block w-52 rounded-lg bg-gray-800 text-white text-xs px-2.5 py-1.5 shadow-lg z-[999] leading-snug text-center">
         {text}
-        <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-800" />
+        <span className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-gray-800" />
       </span>
     </span>
   );
@@ -152,6 +152,7 @@ export default function ConversionPage() {
   // Filtry (prázdný Set = vše vybráno)
   const [selectedEvents, setSelectedEvents] = useState<Set<string>>(new Set<string>());
   const [selectedPages, setSelectedPages] = useState<Set<string>>(new Set<string>());
+  const [onlyRealizace, setOnlyRealizace] = useState(false);
 
   // Sloupce
   const [showDate, setShowDate]   = useState(false);
@@ -252,7 +253,8 @@ export default function ConversionPage() {
   const grouped: GroupedRow[] = useMemo(() => {
     const filtered = rows.filter(r =>
       (selectedEvents.size === 0 || selectedEvents.has(r.eventName)) &&
-      (selectedPages.size === 0 || selectedPages.has(r.conversionPage))
+      (selectedPages.size === 0 || selectedPages.has(r.conversionPage)) &&
+      (!onlyRealizace || r.eventName === "generate_lead")
     );
 
     const map = new Map<string, GroupedRow>();
@@ -283,7 +285,7 @@ export default function ConversionPage() {
     });
 
     return list;
-  }, [rows, selectedEvents, selectedPages, showDate, showName, sortKey, sortDir]);
+  }, [rows, selectedEvents, selectedPages, onlyRealizace, showDate, showName, sortKey, sortDir]);
 
   // Auth error
   if (authError) {
@@ -341,12 +343,29 @@ export default function ConversionPage() {
           />
 
           <MultiSelectDropdown
-            label="Konv. stránka"
+            label="Konverzní stránka"
             options={conversionPages.map(p => ({ value: p, label: p }))}
             selected={selectedPages}
             onToggle={makeToggle(setSelectedPages, conversionPages)}
             allLabel="Všechny stránky"
           />
+
+          {/* Jen realizace */}
+          <button
+            onClick={() => setOnlyRealizace(o => !o)}
+            className={`flex items-center gap-1.5 border rounded-lg px-3 py-1.5 text-xs transition-colors ${
+              onlyRealizace
+                ? "border-orange-300 bg-orange-50 text-orange-700"
+                : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+            }`}
+          >
+            Jen realizace
+            {onlyRealizace && (
+              <span className="bg-orange-100 text-orange-700 border border-orange-200 rounded px-1.5 py-0.5 text-[10px] font-semibold ml-0.5">
+                Jen v řešení
+              </span>
+            )}
+          </button>
 
           {!loading && rows.length > 0 && (
             <span className="ml-auto text-xs text-gray-400">
@@ -413,7 +432,12 @@ export default function ConversionPage() {
                   {sortKey === "eventName" && <SortIcon dir={sortDir} />}
                 </th>
                 <th className={thClass} onClick={() => handleSort("conversionPage")}>
-                  Konverzní stránka {sortKey === "conversionPage" && <SortIcon dir={sortDir} />}
+                  Konverzní stránka
+                  <Tooltip text="Stránka, na které proběhla konverze" />
+                  {sortKey === "conversionPage" && <SortIcon dir={sortDir} />}
+                </th>
+                <th className="px-4 py-3 text-left text-gray-600 font-semibold whitespace-nowrap">
+                  Realizace
                 </th>
                 {showName && (
                   <th className="px-4 py-3 text-left text-gray-600 font-semibold whitespace-nowrap">
@@ -455,6 +479,17 @@ export default function ConversionPage() {
                       </span>
                     ) : (
                       <span className="text-gray-300 text-xs">—</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    {row.eventName === "generate_lead" ? (
+                      <span className="text-xs px-2 py-1 rounded border font-medium bg-orange-100 text-orange-700 border-orange-200">
+                        V řešení
+                      </span>
+                    ) : (
+                      <span className="text-xs px-2 py-1 rounded border font-medium bg-red-100 text-red-700 border-red-200">
+                        Ne
+                      </span>
                     )}
                   </td>
                   {showName && (

@@ -154,8 +154,8 @@ export default function ConversionPage() {
   // Filtry (prázdný Set = vše vybráno)
   const [selectedEvents, setSelectedEvents] = useState<Set<string>>(new Set<string>());
   const [selectedPages, setSelectedPages] = useState<Set<string>>(new Set<string>());
-  // realizaceFilter: "all" | "realizace" (=Ano) | "v_reseni" (=V řešení)
-  const [realizaceFilter, setRealizaceFilter] = useState<"all" | "realizace" | "v_reseni">("all");
+  const [filterAno,     setFilterAno]     = useState(false);
+  const [filterVReseni, setFilterVReseni] = useState(false);
 
   // Sloupce
   const [showDate, setShowDate]   = useState(false);
@@ -257,9 +257,9 @@ export default function ConversionPage() {
     const filtered = rows.filter(r =>
       (selectedEvents.size === 0 || selectedEvents.has(r.eventName)) &&
       (selectedPages.size === 0 || selectedPages.has(r.conversionPage)) &&
-      (realizaceFilter === "all" ||
-       (realizaceFilter === "realizace" && r.realizace === "Ano") ||
-       (realizaceFilter === "v_reseni" && r.realizace === "V řešení"))
+      (!filterAno && !filterVReseni ||
+       (filterAno && r.realizace === "Ano") ||
+       (filterVReseni && r.realizace === "V řešení"))
     );
 
     const map = new Map<string, GroupedRow>();
@@ -290,7 +290,7 @@ export default function ConversionPage() {
     });
 
     return list;
-  }, [rows, selectedEvents, selectedPages, realizaceFilter, showDate, showName, sortKey, sortDir]);
+  }, [rows, selectedEvents, selectedPages, filterAno, filterVReseni, showDate, showName, sortKey, sortDir]);
 
   // Auth error
   if (authError) {
@@ -355,27 +355,25 @@ export default function ConversionPage() {
             allLabel="Všechny stránky"
           />
 
-          {/* Realizace filtry */}
-          <button
-            onClick={() => setRealizaceFilter(f => f === "realizace" ? "all" : "realizace")}
-            className={`flex items-center gap-1.5 border rounded-lg px-3 py-1.5 text-xs transition-colors ${
-              realizaceFilter === "realizace"
-                ? "border-green-400 bg-green-50 text-green-700 font-semibold"
-                : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-            }`}
-          >
-            Jen realizace
-          </button>
-          <button
-            onClick={() => setRealizaceFilter(f => f === "v_reseni" ? "all" : "v_reseni")}
-            className={`flex items-center gap-1.5 border rounded-lg px-3 py-1.5 text-xs transition-colors ${
-              realizaceFilter === "v_reseni"
-                ? "border-orange-300 bg-orange-50 text-orange-700 font-semibold"
-                : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-            }`}
-          >
-            Jen v řešení
-          </button>
+          {/* Realizace filtry — checkboxy */}
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={filterAno}
+              onChange={e => setFilterAno(e.target.checked)}
+              className="w-3.5 h-3.5 rounded accent-green-600"
+            />
+            <span className="text-xs font-semibold text-gray-700">Realizace</span>
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={filterVReseni}
+              onChange={e => setFilterVReseni(e.target.checked)}
+              className="w-3.5 h-3.5 rounded accent-orange-500"
+            />
+            <span className="text-xs font-semibold text-gray-700">V řešení</span>
+          </label>
 
           {!loading && rows.length > 0 && (
             <span className="ml-auto text-xs text-gray-400">

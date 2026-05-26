@@ -270,7 +270,7 @@ export default function OverviewPage() {
           </div>
 
           {/* Nadpis sekce */}
-          <h2 className="text-base font-bold text-gray-800 mb-3">Poptávky</h2>
+          <h2 className="text-xl font-extrabold text-gray-900 text-center mb-3">Poptávky</h2>
 
           {/* Filtr + tabulka poptávek */}
           <div className="flex items-center gap-4 mb-2">

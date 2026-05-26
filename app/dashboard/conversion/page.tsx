@@ -12,8 +12,6 @@ interface ConversionRow {
   conversionPage: string;
   userPath: string;
   formFullname: string;
-  realizace: string;
-  hrubaMarze: string;
   users: number;
 }
 
@@ -154,8 +152,6 @@ export default function ConversionPage() {
   // Filtry (prázdný Set = vše vybráno)
   const [selectedEvents, setSelectedEvents] = useState<Set<string>>(new Set<string>());
   const [selectedPages, setSelectedPages] = useState<Set<string>>(new Set<string>());
-  const [filterAno,     setFilterAno]     = useState(false);
-  const [filterVReseni, setFilterVReseni] = useState(false);
 
   // Sloupce
   const [showDate, setShowDate]   = useState(false);
@@ -257,9 +253,7 @@ export default function ConversionPage() {
     const filtered = rows.filter(r =>
       (selectedEvents.size === 0 || selectedEvents.has(r.eventName)) &&
       (selectedPages.size === 0 || selectedPages.has(r.conversionPage)) &&
-      (!filterAno && !filterVReseni ||
-       (filterAno && r.realizace === "Ano") ||
-       (filterVReseni && r.realizace === "V řešení"))
+      true
     );
 
     const map = new Map<string, GroupedRow>();
@@ -290,7 +284,7 @@ export default function ConversionPage() {
     });
 
     return list;
-  }, [rows, selectedEvents, selectedPages, filterAno, filterVReseni, showDate, showName, sortKey, sortDir]);
+  }, [rows, selectedEvents, selectedPages, showDate, showName, sortKey, sortDir]);
 
   // Auth error
   if (authError) {
@@ -355,25 +349,6 @@ export default function ConversionPage() {
             allLabel="Všechny stránky"
           />
 
-          {/* Realizace filtry — checkboxy */}
-          <label className="flex items-center gap-2 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={filterAno}
-              onChange={e => setFilterAno(e.target.checked)}
-              className="w-3.5 h-3.5 rounded accent-green-600"
-            />
-            <span className="text-xs font-semibold text-gray-700">Realizace</span>
-          </label>
-          <label className="flex items-center gap-2 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={filterVReseni}
-              onChange={e => setFilterVReseni(e.target.checked)}
-              className="w-3.5 h-3.5 rounded accent-orange-500"
-            />
-            <span className="text-xs font-semibold text-gray-700">V řešení</span>
-          </label>
 
           {!loading && rows.length > 0 && (
             <span className="ml-auto text-xs text-gray-400">
@@ -444,12 +419,6 @@ export default function ConversionPage() {
                   <Tooltip text="Stránka, na které proběhla konverze" />
                   {sortKey === "conversionPage" && <SortIcon dir={sortDir} />}
                 </th>
-                <th className="px-4 py-3 text-left text-gray-600 font-semibold whitespace-nowrap">
-                  Realizace
-                </th>
-                <th className="px-4 py-3 text-right text-gray-600 font-semibold whitespace-nowrap">
-                  Hrubá marže v Kč
-                </th>
                 {showName && (
                   <th className="px-4 py-3 text-left text-gray-600 font-semibold whitespace-nowrap">
                     Jméno zákazníka
@@ -487,32 +456,6 @@ export default function ConversionPage() {
                     {row.conversionPage ? (
                       <span className="font-mono text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded">
                         {row.conversionPage}
-                      </span>
-                    ) : (
-                      <span className="text-gray-300 text-xs">—</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    {row.realizace === "Ano" ? (
-                      <span className="text-xs px-2 py-1 rounded border font-medium bg-green-100 text-green-700 border-green-200">
-                        Ano
-                      </span>
-                    ) : row.realizace === "V řešení" ? (
-                      <span className="text-xs px-2 py-1 rounded border font-medium bg-orange-100 text-orange-700 border-orange-200">
-                        V řešení
-                      </span>
-                    ) : row.realizace === "Ne" ? (
-                      <span className="text-xs px-2 py-1 rounded border font-medium bg-red-100 text-red-700 border-red-200">
-                        Ne
-                      </span>
-                    ) : (
-                      <span className="text-gray-300 text-xs">—</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-right whitespace-nowrap">
-                    {row.realizace === "Ano" && row.hrubaMarze ? (
-                      <span className="font-semibold text-gray-800">
-                        {Number(row.hrubaMarze.replace(/[\s ]/g, "").replace(",", ".")).toLocaleString("cs-CZ")} Kč
                       </span>
                     ) : (
                       <span className="text-gray-300 text-xs">—</span>

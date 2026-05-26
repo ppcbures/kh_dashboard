@@ -299,6 +299,16 @@ export default function ConversionPage() {
             <input type="checkbox" checked={showName} onChange={e => setShowName(e.target.checked)}
               className="w-3.5 h-3.5 rounded accent-red-600" />
             <span className="text-xs text-gray-700">Jméno zákazníka</span>
+            <span
+              className="group relative flex items-center justify-center w-4 h-4 rounded-full bg-gray-300 text-white text-[10px] font-bold cursor-default leading-none"
+              title="Zobrazuje se pouze při odeslaném formuláři"
+            >
+              ?
+              <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover:block w-52 rounded-lg bg-gray-800 text-white text-xs px-2.5 py-1.5 shadow-lg z-50 leading-snug text-center">
+                Zobrazuje se pouze při odeslaném formuláři
+                <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-800" />
+              </span>
+            </span>
           </label>
         </div>
       </div>

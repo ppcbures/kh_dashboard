@@ -1,6 +1,6 @@
 "use client";
 
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 import { useState, useEffect, useCallback } from "react";
 import DateRangePicker from "@/components/DateRangePicker";
 import { useDateRange } from "@/contexts/DateRangeContext";
@@ -134,6 +134,7 @@ export default function PagesAnalysis() {
   const [selectedProperty, setSelectedProperty] = useState<string | null>(null);
   const [propertyName, setPropertyName] = useState<string>("");
   const [propertyError, setPropertyError] = useState<string | null>(null);
+  const [propertyAuthError, setPropertyAuthError] = useState(false);
   const { dateRange, setDateRange } = useDateRange();
   const [pages, setPages] = useState<PageRow[]>([]);
   const [loadingPages, setLoadingPages] = useState(false);
@@ -152,9 +153,16 @@ export default function PagesAnalysis() {
     if (!accessToken || selectedProperty) return;
     (async () => {
       try {
+        setPropertyError(null);
+        setPropertyAuthError(false);
         const res = await fetch("/api/ga/properties", {
           headers: { Authorization: `Bearer ${accessToken}` },
         });
+        if (res.status === 401 || res.status === 403 || res.status === 500) {
+          setPropertyAuthError(true);
+          setPropertyError(`HTTP ${res.status}`);
+          return;
+        }
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         const props: { name: string; displayName: string }[] = data.properties || [];
@@ -333,15 +341,37 @@ export default function PagesAnalysis() {
       {!selectedProperty ? (
         <div className="flex-1 flex items-center justify-center">
           {propertyError ? (
-            <div className="text-center">
-              <div className="text-red-500 font-medium text-sm mb-1">Nepodařilo se načíst GA4</div>
-              <div className="text-gray-400 text-xs">{propertyError}</div>
-              <button
-                onClick={() => { setPropertyError(null); }}
-                className="mt-3 px-4 py-2 text-xs bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-600 transition-colors"
-              >
-                Zkusit znovu
-              </button>
+            <div className="text-center max-w-xs">
+              {propertyAuthError ? (
+                <>
+                  <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-3">
+                    <svg className="w-6 h-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                        d="M12 15v2m0 0v2m0-2h2m-2 0H10m2-11a7 7 0 100 14 7 7 0 000-14z" />
+                    </svg>
+                  </div>
+                  <div className="text-gray-800 font-semibold text-sm mb-1">Platnost přihlášení vypršela</div>
+                  <div className="text-gray-400 text-xs mb-4">Pro zobrazení dat je nutné se znovu přihlásit přes Google.</div>
+                  <button
+                    onClick={() => signOut({ callbackUrl: "/login" })}
+                    className="px-5 py-2 text-sm font-medium text-white rounded-lg transition-colors"
+                    style={{ backgroundColor: "#e30613" }}
+                  >
+                    Přihlásit se znovu
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div className="text-red-500 font-medium text-sm mb-1">Nepodařilo se načíst GA4</div>
+                  <div className="text-gray-400 text-xs mb-3">{propertyError}</div>
+                  <button
+                    onClick={() => { setPropertyError(null); setPropertyAuthError(false); }}
+                    className="px-4 py-2 text-xs bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-600 transition-colors"
+                  >
+                    Zkusit znovu
+                  </button>
+                </>
+              )}
             </div>
           ) : (
             <div className="flex items-center gap-3 text-gray-400">

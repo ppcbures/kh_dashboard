@@ -292,7 +292,7 @@ export default function ConversionPage() {
     return (
       <div className="flex flex-col h-full overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200 bg-white flex-shrink-0">
-          <h1 className="text-xl font-bold text-gray-900">Konverzní cesty</h1>
+          <h1 className="text-xl font-bold text-gray-900">Konverzní cesty – z Google Analytics</h1>
         </div>
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center max-w-xs">
@@ -322,7 +322,7 @@ export default function ConversionPage() {
       {/* Top bar */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-white flex-shrink-0">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Konverzní cesty</h1>
+          <h1 className="text-xl font-bold text-gray-900">Konverzní cesty – z Google Analytics</h1>
           <p className="text-xs text-gray-400 mt-0.5">
             * konverze = odeslání formuláře, kliknutí na tel/email, zkopírování tel/emailu
           </p>

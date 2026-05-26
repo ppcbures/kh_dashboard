@@ -235,6 +235,21 @@ export default function ConversionPage() {
     [rows]
   );
 
+  // Počty uživatelů per událost a per konverzní stránka (pro zobrazení v závorkách)
+  const eventCounts = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const row of rows) map[row.eventName] = (map[row.eventName] || 0) + row.users;
+    return map;
+  }, [rows]);
+
+  const pageCounts = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const row of rows) {
+      if (row.conversionPage) map[row.conversionPage] = (map[row.conversionPage] || 0) + row.users;
+    }
+    return map;
+  }, [rows]);
+
   // Filtrování + seskupení + řazení
   const grouped: GroupedRow[] = useMemo(() => {
     const filtered = rows.filter(r =>
@@ -323,7 +338,10 @@ export default function ConversionPage() {
         <div className="flex flex-wrap items-center gap-3">
           <MultiSelectDropdown
             label="Událost"
-            options={ALL_EVENTS.map(e => ({ value: e, label: EVENT_LABELS[e] || e }))}
+            options={ALL_EVENTS.map(e => ({
+              value: e,
+              label: `${EVENT_LABELS[e] || e}${eventCounts[e] ? ` (${eventCounts[e].toLocaleString("cs-CZ")})` : ""}`,
+            }))}
             selected={selectedEvents}
             onToggle={makeToggle(setSelectedEvents, [...ALL_EVENTS])}
             allLabel="Všechny události"
@@ -331,7 +349,10 @@ export default function ConversionPage() {
 
           <MultiSelectDropdown
             label="Konverzní stránka"
-            options={conversionPages.map(p => ({ value: p, label: p }))}
+            options={conversionPages.map(p => ({
+              value: p,
+              label: `${p}${pageCounts[p] ? ` (${pageCounts[p].toLocaleString("cs-CZ")})` : ""}`,
+            }))}
             selected={selectedPages}
             onToggle={makeToggle(setSelectedPages, conversionPages)}
             allLabel="Všechny stránky"

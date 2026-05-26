@@ -1,7 +1,7 @@
 "use client";
 
 import { useSession, signOut } from "next-auth/react";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import DateRangePicker from "@/components/DateRangePicker";
 import { useDateRange } from "@/contexts/DateRangeContext";
 
@@ -9,6 +9,7 @@ interface ConversionRow {
   dateRaw: string;
   date: string;
   eventName: string;
+  conversionPage: string;
   userPath: string;
   formFullname: string;
   users: number;
@@ -18,13 +19,40 @@ interface GroupedRow extends ConversionRow {
   count: number;
 }
 
-const EVENT_COLORS: Record<string, string> = {
-  generate_lead:       "bg-green-100 text-green-800",
-  contact_click_tel:   "bg-blue-100 text-blue-800",
-  contact_click_email: "bg-purple-100 text-purple-800",
-  contact_copy_tel:    "bg-sky-100 text-sky-800",
-  contact_copy_email:  "bg-violet-100 text-violet-800",
+type SortKey = "date" | "eventName" | "conversionPage" | "userPath";
+
+const ALL_EVENTS = [
+  "generate_lead",
+  "contact_click_tel",
+  "contact_click_email",
+  "contact_copy_tel",
+  "contact_copy_email",
+] as const;
+
+const EVENT_LABELS: Record<string, string> = {
+  generate_lead:       "Odeslání formuláře",
+  contact_click_tel:   "Kliknutí na telefon",
+  contact_click_email: "Kliknutí na email",
+  contact_copy_tel:    "Zkopírování telefonu",
+  contact_copy_email:  "Zkopírování emailu",
 };
+
+const EVENT_COLORS: Record<string, string> = {
+  generate_lead:       "bg-green-100 text-green-800 border-green-200",
+  contact_click_tel:   "bg-blue-100 text-blue-800 border-blue-200",
+  contact_click_email: "bg-purple-100 text-purple-800 border-purple-200",
+  contact_copy_tel:    "bg-sky-100 text-sky-800 border-sky-200",
+  contact_copy_email:  "bg-violet-100 text-violet-800 border-violet-200",
+};
+
+function SortIcon({ dir }: { dir: "asc" | "desc" }) {
+  return (
+    <svg className="w-3.5 h-3.5 inline ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5}
+        d={dir === "asc" ? "M5 15l7-7 7 7" : "M19 9l-7 7-7-7"} />
+    </svg>
+  );
+}
 
 export default function ConversionPage() {
   const { data: session } = useSession();
@@ -36,11 +64,18 @@ export default function ConversionPage() {
   const [rows, setRows] = useState<ConversionRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [errorDetail, setErrorDetail] = useState<string | null>(null);
 
-  const [showDate, setShowDate] = useState(false);
-  const [showName, setShowName] = useState(false);
-  const [filterEvent, setFilterEvent] = useState("all");
+  // Filtry
+  const [selectedEvents, setSelectedEvents] = useState<Set<string>>(new Set(ALL_EVENTS));
+  const [filterPage, setFilterPage] = useState("all");
+
+  // Sloupce
+  const [showDate, setShowDate]   = useState(false);
+  const [showName, setShowName]   = useState(false);
+
+  // Řazení
+  const [sortKey, setSortKey] = useState<SortKey>("date");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
   const accessToken = (session as { accessToken?: string })?.accessToken;
 
@@ -71,7 +106,7 @@ export default function ConversionPage() {
     })();
   }, [accessToken, selectedProperty]);
 
-  // Fetch conversion data
+  // Fetch dat
   const fetchData = useCallback(async () => {
     if (!accessToken || !selectedProperty) return;
     setLoading(true);
@@ -82,29 +117,61 @@ export default function ConversionPage() {
         { headers: { Authorization: `Bearer ${accessToken}` } }
       );
       const data = await res.json();
-      if (!res.ok) {
-        setErrorDetail(data.detail ? JSON.stringify(data.detail) : null);
-        throw new Error(data.error || `HTTP ${res.status}`);
-      }
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
       setRows(data.rows || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Chyba načítání dat");
-      setErrorDetail(null);
     } finally {
       setLoading(false);
     }
   }, [accessToken, selectedProperty, dateRange]);
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Group rows by active columns
-  const grouped: GroupedRow[] = (() => {
-    const filtered = filterEvent === "all" ? rows : rows.filter(r => r.eventName === filterEvent);
+  // Toggle události
+  const toggleEvent = (event: string) => {
+    setSelectedEvents(prev => {
+      const next = new Set(prev);
+      if (next.has(event)) next.delete(event);
+      else next.add(event);
+      return next;
+    });
+  };
+
+  // Toggle řazení
+  const handleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDir(d => d === "asc" ? "desc" : "asc");
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+  };
+
+  // Unikátní konverzní stránky pro filtr
+  const conversionPages = useMemo(
+    () => [...new Set(rows.map(r => r.conversionPage).filter(Boolean))].sort(),
+    [rows]
+  );
+
+  // Události přítomné v datech
+  const eventNamesInData = useMemo(
+    () => [...new Set(rows.map(r => r.eventName))],
+    [rows]
+  );
+
+  // Filtrování + seskupení + řazení
+  const grouped: GroupedRow[] = useMemo(() => {
+    const activeEvents = selectedEvents.size === 0 ? new Set(ALL_EVENTS as readonly string[]) : selectedEvents;
+
+    const filtered = rows.filter(r =>
+      activeEvents.has(r.eventName) &&
+      (filterPage === "all" || r.conversionPage === filterPage)
+    );
+
     const map = new Map<string, GroupedRow>();
     for (const row of filtered) {
-      const keyParts: string[] = [row.eventName, row.userPath];
+      const keyParts = [row.eventName, row.conversionPage, row.userPath];
       if (showDate) keyParts.unshift(row.dateRaw);
       if (showName) keyParts.push(row.formFullname);
       const key = keyParts.join("|||");
@@ -115,19 +182,28 @@ export default function ConversionPage() {
         map.set(key, { ...row, count: 1 });
       }
     }
-    return Array.from(map.values()).sort((a, b) => {
-      if (showDate && a.dateRaw !== b.dateRaw) return b.dateRaw.localeCompare(a.dateRaw);
-      return b.users - a.users;
+
+    const list = Array.from(map.values());
+
+    list.sort((a, b) => {
+      let cmp = 0;
+      switch (sortKey) {
+        case "date":        cmp = a.dateRaw.localeCompare(b.dateRaw); break;
+        case "eventName":   cmp = (EVENT_LABELS[a.eventName] || a.eventName).localeCompare(EVENT_LABELS[b.eventName] || b.eventName); break;
+        case "conversionPage": cmp = a.conversionPage.localeCompare(b.conversionPage); break;
+        case "userPath":    cmp = a.users - b.users; break;
+      }
+      return sortDir === "asc" ? cmp : -cmp;
     });
-  })();
 
-  const eventNames = [...new Set(rows.map(r => r.eventName))].sort();
+    return list;
+  }, [rows, selectedEvents, filterPage, showDate, showName, sortKey, sortDir]);
 
-  // Auth error state
+  // Auth error
   if (authError) {
     return (
       <div className="flex flex-col h-full overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-white flex-shrink-0">
+        <div className="px-6 py-4 border-b border-gray-200 bg-white flex-shrink-0">
           <h1 className="text-xl font-bold text-gray-900">Konverzní cesty</h1>
         </div>
         <div className="flex-1 flex items-center justify-center">
@@ -140,11 +216,9 @@ export default function ConversionPage() {
             </div>
             <div className="text-gray-800 font-semibold text-sm mb-1">Platnost přihlášení vypršela</div>
             <div className="text-gray-400 text-xs mb-4">Pro zobrazení dat je nutné se znovu přihlásit přes Google.</div>
-            <button
-              onClick={() => signOut({ callbackUrl: "/login" })}
-              className="px-5 py-2 text-sm font-medium text-white rounded-lg transition-colors"
-              style={{ backgroundColor: "#e30613" }}
-            >
+            <button onClick={() => signOut({ callbackUrl: "/login" })}
+              className="px-5 py-2 text-sm font-medium text-white rounded-lg"
+              style={{ backgroundColor: "#e30613" }}>
               Přihlásit se znovu
             </button>
           </div>
@@ -152,6 +226,8 @@ export default function ConversionPage() {
       </div>
     );
   }
+
+  const thClass = "px-4 py-3 text-left text-gray-600 font-semibold whitespace-nowrap cursor-pointer select-none hover:bg-gray-100 transition-colors";
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -166,54 +242,65 @@ export default function ConversionPage() {
         <DateRangePicker value={dateRange} onChange={setDateRange} />
       </div>
 
-      {/* Filters + toggles */}
-      <div className="flex items-center flex-wrap gap-4 px-6 py-3 bg-gray-50 border-b border-gray-200 flex-shrink-0">
-        {/* Event filter */}
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-500 font-medium">Událost:</span>
+      {/* Filtry */}
+      <div className="flex flex-col gap-2 px-6 py-3 bg-gray-50 border-b border-gray-200 flex-shrink-0">
+        {/* Řádek 1: event chips + konverzní stránka */}
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Událost:</span>
+          <div className="flex flex-wrap gap-1.5">
+            {ALL_EVENTS.filter(e => eventNamesInData.includes(e) || eventNamesInData.length === 0).map(event => {
+              const active = selectedEvents.has(event);
+              return (
+                <button
+                  key={event}
+                  onClick={() => toggleEvent(event)}
+                  className={`px-3 py-1 rounded-full text-xs font-medium border transition-all ${
+                    active
+                      ? (EVENT_COLORS[event] ?? "bg-gray-200 text-gray-700 border-gray-300")
+                      : "bg-white text-gray-400 border-gray-200 hover:border-gray-300"
+                  }`}
+                >
+                  {EVENT_LABELS[event] || event}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="h-4 w-px bg-gray-300 ml-1" />
+
+          <span className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Konv. stránka:</span>
           <select
-            value={filterEvent}
-            onChange={e => setFilterEvent(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-red-400"
+            value={filterPage}
+            onChange={e => setFilterPage(e.target.value)}
+            className="border border-gray-300 rounded-lg px-3 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-red-400 max-w-xs"
           >
             <option value="all">Všechny</option>
-            {eventNames.map(n => (
-              <option key={n} value={n}>{n}</option>
+            {conversionPages.map(p => (
+              <option key={p} value={p}>{p}</option>
             ))}
           </select>
+
+          {!loading && rows.length > 0 && (
+            <span className="ml-auto text-xs text-gray-400">
+              {grouped.length}&nbsp;{grouped.length === 1 ? "záznam" : grouped.length < 5 ? "záznamy" : "záznamů"}
+            </span>
+          )}
         </div>
 
-        <div className="h-4 w-px bg-gray-300" />
-
-        {/* Column toggles */}
-        <span className="text-sm text-gray-500 font-medium">Zobrazit sloupce:</span>
-
-        <label className="flex items-center gap-2 cursor-pointer select-none">
-          <input
-            type="checkbox"
-            checked={showDate}
-            onChange={e => setShowDate(e.target.checked)}
-            className="w-4 h-4 rounded accent-red-600"
-          />
-          <span className="text-sm text-gray-700">Datum</span>
-        </label>
-
-        <label className="flex items-center gap-2 cursor-pointer select-none">
-          <input
-            type="checkbox"
-            checked={showName}
-            onChange={e => setShowName(e.target.checked)}
-            className="w-4 h-4 rounded accent-red-600"
-          />
-          <span className="text-sm text-gray-700">Jméno zákazníka</span>
-        </label>
-
-        {!loading && rows.length > 0 && (
-          <span className="ml-auto text-sm text-gray-400">
-            {grouped.length}&nbsp;
-            {grouped.length === 1 ? "záznam" : grouped.length < 5 ? "záznamy" : "záznamů"}
-          </span>
-        )}
+        {/* Řádek 2: zobrazit sloupce */}
+        <div className="flex items-center gap-4">
+          <span className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Zobrazit:</span>
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input type="checkbox" checked={showDate} onChange={e => setShowDate(e.target.checked)}
+              className="w-3.5 h-3.5 rounded accent-red-600" />
+            <span className="text-xs text-gray-700">Datum</span>
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input type="checkbox" checked={showName} onChange={e => setShowName(e.target.checked)}
+              className="w-3.5 h-3.5 rounded accent-red-600" />
+            <span className="text-xs text-gray-700">Jméno zákazníka</span>
+          </label>
+        </div>
       </div>
 
       {/* Content */}
@@ -233,13 +320,8 @@ export default function ConversionPage() {
           <div className="flex flex-col items-center justify-center h-full gap-2">
             <p className="text-red-500 text-sm font-medium">Nepodařilo se načíst data</p>
             <p className="text-gray-400 text-xs">{error}</p>
-            {errorDetail && (
-              <p className="text-gray-300 text-xs max-w-md break-all mt-1">{errorDetail}</p>
-            )}
-            <button
-              onClick={fetchData}
-              className="mt-2 px-4 py-2 text-xs bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-600 transition-colors"
-            >
+            <button onClick={fetchData}
+              className="mt-2 px-4 py-2 text-xs bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-600 transition-colors">
               Zkusit znovu
             </button>
           </div>
@@ -252,14 +334,27 @@ export default function ConversionPage() {
             <thead className="sticky top-0 z-10">
               <tr className="bg-gray-50 border-b-2 border-gray-200">
                 {showDate && (
-                  <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap">Datum</th>
+                  <th className={thClass} onClick={() => handleSort("date")}>
+                    Datum {sortKey === "date" && <SortIcon dir={sortDir} />}
+                  </th>
                 )}
-                <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap">Název události</th>
+                <th className={thClass} onClick={() => handleSort("eventName")}>
+                  Název události {sortKey === "eventName" && <SortIcon dir={sortDir} />}
+                </th>
+                <th className={thClass} onClick={() => handleSort("conversionPage")}>
+                  Konverzní stránka {sortKey === "conversionPage" && <SortIcon dir={sortDir} />}
+                </th>
                 {showName && (
-                  <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap">Jméno zákazníka</th>
+                  <th className="px-4 py-3 text-left text-gray-600 font-semibold whitespace-nowrap">
+                    Jméno zákazníka
+                  </th>
                 )}
-                <th className="text-left px-4 py-3 text-gray-600 font-semibold">Cesta uživatele</th>
-                <th className="text-right px-4 py-3 text-gray-600 font-semibold whitespace-nowrap">Počet uživatelů</th>
+                <th className={thClass} onClick={() => handleSort("userPath")}>
+                  Cesta uživatele {sortKey === "userPath" && <SortIcon dir={sortDir} />}
+                </th>
+                <th className="px-4 py-3 text-right text-gray-600 font-semibold whitespace-nowrap">
+                  Počet uživatelů
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -274,16 +369,23 @@ export default function ConversionPage() {
                     <td className="px-4 py-3 text-gray-500 whitespace-nowrap text-xs">{row.date}</td>
                   )}
                   <td className="px-4 py-3 whitespace-nowrap">
-                    <span
-                      className={`font-mono text-xs px-2 py-1 rounded font-medium ${
-                        EVENT_COLORS[row.eventName] ?? "bg-gray-100 text-gray-700"
-                      }`}
-                    >
-                      {row.eventName}
+                    <span className={`font-mono text-xs px-2 py-1 rounded border font-medium ${
+                      EVENT_COLORS[row.eventName] ?? "bg-gray-100 text-gray-700 border-gray-200"
+                    }`}>
+                      {EVENT_LABELS[row.eventName] || row.eventName}
                     </span>
                   </td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    {row.conversionPage ? (
+                      <span className="font-mono text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded">
+                        {row.conversionPage}
+                      </span>
+                    ) : (
+                      <span className="text-gray-300 text-xs">—</span>
+                    )}
+                  </td>
                   {showName && (
-                    <td className="px-4 py-3 text-gray-700 whitespace-nowrap">
+                    <td className="px-4 py-3 text-gray-700 whitespace-nowrap text-sm">
                       {row.formFullname && row.formFullname !== "(not set)"
                         ? row.formFullname
                         : <span className="text-gray-300">—</span>}

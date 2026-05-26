@@ -4,6 +4,7 @@ import { useSession, signOut } from "next-auth/react";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import DateRangePicker from "@/components/DateRangePicker";
 import { useDateRange } from "@/contexts/DateRangeContext";
+import Tooltip from "@/components/Tooltip";
 
 interface ConversionRow {
   dateRaw: string;
@@ -45,20 +46,6 @@ const EVENT_COLORS: Record<string, string> = {
   contact_copy_email:  "bg-violet-100 text-violet-800 border-violet-200",
 };
 
-function Tooltip({ text }: { text: string }) {
-  return (
-    <span
-      className="group relative inline-flex items-center justify-center w-4 h-4 rounded-full bg-gray-300 text-white text-[10px] font-bold cursor-default leading-none ml-1 align-middle"
-      onClick={e => e.stopPropagation()}
-    >
-      ?
-      <span className="pointer-events-none absolute top-full left-1/2 -translate-x-1/2 mt-1.5 hidden group-hover:block w-80 rounded-lg bg-gray-800 text-white text-xs px-2.5 py-1.5 shadow-lg z-[999] leading-snug text-center">
-        {text}
-        <span className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-gray-800" />
-      </span>
-    </span>
-  );
-}
 
 interface MultiSelectDropdownProps {
   label: string;

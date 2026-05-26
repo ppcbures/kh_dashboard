@@ -52,7 +52,7 @@ function Tooltip({ text }: { text: string }) {
       onClick={e => e.stopPropagation()}
     >
       ?
-      <span className="pointer-events-none absolute top-full left-1/2 -translate-x-1/2 mt-1.5 hidden group-hover:block w-64 rounded-lg bg-gray-800 text-white text-xs px-2.5 py-1.5 shadow-lg z-[999] leading-snug text-center">
+      <span className="pointer-events-none absolute top-full left-1/2 -translate-x-1/2 mt-1.5 hidden group-hover:block w-80 rounded-lg bg-gray-800 text-white text-xs px-2.5 py-1.5 shadow-lg z-[999] leading-snug text-center">
         {text}
         <span className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-gray-800" />
       </span>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useSession, signOut } from "next-auth/react";
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import DateRangePicker from "@/components/DateRangePicker";
 import { useDateRange } from "@/contexts/DateRangeContext";
 
@@ -60,6 +60,75 @@ function Tooltip({ text }: { text: string }) {
   );
 }
 
+interface MultiSelectDropdownProps {
+  label: string;
+  options: { value: string; label: string }[];
+  selected: Set<string>;
+  onToggle: (value: string) => void;
+  allLabel?: string;
+}
+
+function MultiSelectDropdown({ label, options, selected, onToggle, allLabel = "Všechny" }: MultiSelectDropdownProps) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  // Zavřít při kliknutí mimo
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  const allSelected = selected.size === 0 || selected.size === options.length;
+  const activeCount = allSelected ? options.length : selected.size;
+  const buttonLabel = allSelected
+    ? allLabel
+    : `${activeCount} ${activeCount === 1 ? "vybraná" : activeCount < 5 ? "vybrané" : "vybraných"}`;
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="flex items-center gap-1.5 border border-gray-300 rounded-lg px-3 py-1.5 text-xs bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400 transition-colors"
+      >
+        <span className="text-gray-700">{label}:</span>
+        <span className={`font-medium ${allSelected ? "text-gray-500" : "text-red-600"}`}>{buttonLabel}</span>
+        <svg className={`w-3 h-3 text-gray-400 transition-transform ${open ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {open && (
+        <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 min-w-[220px] py-1">
+          {/* Vybrat vše */}
+          <button
+            onClick={() => { options.forEach(o => { if (!allSelected && !selected.has(o.value)) onToggle(o.value); if (allSelected) { /* noop — prázdná = vše */ } }); if (!allSelected) options.forEach(o => { if (selected.has(o.value)) onToggle(o.value); }); }}
+            className="w-full text-left px-3 py-1.5 text-xs text-gray-500 hover:bg-gray-50 border-b border-gray-100 font-medium"
+          >
+            {allSelected ? "✓ Vše vybráno" : "Vybrat vše"}
+          </button>
+          {options.map(opt => {
+            const checked = selected.size === 0 || selected.has(opt.value);
+            return (
+              <label key={opt.value} className="flex items-center gap-2.5 px-3 py-1.5 hover:bg-gray-50 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() => onToggle(opt.value)}
+                  className="w-3.5 h-3.5 rounded accent-red-600 flex-shrink-0"
+                />
+                <span className="text-xs text-gray-700 truncate">{opt.label}</span>
+              </label>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SortIcon({ dir }: { dir: "asc" | "desc" }) {
   return (
     <svg className="w-3.5 h-3.5 inline ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -80,9 +149,9 @@ export default function ConversionPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Filtry
-  const [selectedEvents, setSelectedEvents] = useState<Set<string>>(new Set(ALL_EVENTS));
-  const [filterPage, setFilterPage] = useState("all");
+  // Filtry (prázdný Set = vše vybráno)
+  const [selectedEvents, setSelectedEvents] = useState<Set<string>>(new Set<string>());
+  const [selectedPages, setSelectedPages] = useState<Set<string>>(new Set<string>());
 
   // Sloupce
   const [showDate, setShowDate]   = useState(false);
@@ -143,15 +212,19 @@ export default function ConversionPage() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Toggle události
-  const toggleEvent = (event: string) => {
-    setSelectedEvents(prev => {
-      const next = new Set(prev);
-      if (next.has(event)) next.delete(event);
-      else next.add(event);
-      return next;
-    });
-  };
+  // Toggle pro multi-select filtry (prázdný = vše)
+  const makeToggle = (setter: React.Dispatch<React.SetStateAction<Set<string>>>, allValues: string[]) =>
+    (value: string) => {
+      setter(prev => {
+        // Pokud je vše vybráno (prázdný set), první klik odznačí VŠECHNY ostatní
+        const base = prev.size === 0 ? new Set(allValues) : new Set(prev);
+        if (base.has(value)) base.delete(value);
+        else base.add(value);
+        // Pokud jsou vybrány všechny, vrátíme prázdný set (= vše)
+        if (base.size === allValues.length) return new Set<string>();
+        return base;
+      });
+    };
 
   // Toggle řazení
   const handleSort = (key: SortKey) => {
@@ -177,11 +250,9 @@ export default function ConversionPage() {
 
   // Filtrování + seskupení + řazení
   const grouped: GroupedRow[] = useMemo(() => {
-    const activeEvents = selectedEvents.size === 0 ? new Set(ALL_EVENTS as readonly string[]) : selectedEvents;
-
     const filtered = rows.filter(r =>
-      activeEvents.has(r.eventName) &&
-      (filterPage === "all" || r.conversionPage === filterPage)
+      (selectedEvents.size === 0 || selectedEvents.has(r.eventName)) &&
+      (selectedPages.size === 0 || selectedPages.has(r.conversionPage))
     );
 
     const map = new Map<string, GroupedRow>();
@@ -212,7 +283,7 @@ export default function ConversionPage() {
     });
 
     return list;
-  }, [rows, selectedEvents, filterPage, showDate, showName, sortKey, sortDir]);
+  }, [rows, selectedEvents, selectedPages, showDate, showName, sortKey, sortDir]);
 
   // Auth error
   if (authError) {
@@ -259,41 +330,23 @@ export default function ConversionPage() {
 
       {/* Filtry */}
       <div className="flex flex-col gap-2 px-6 py-3 bg-gray-50 border-b border-gray-200 flex-shrink-0">
-        {/* Řádek 1: event chips + konverzní stránka */}
+        {/* Řádek 1: event dropdown + konverzní stránka dropdown */}
         <div className="flex flex-wrap items-center gap-3">
-          <span className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Událost:</span>
-          <div className="flex flex-wrap gap-1.5">
-            {ALL_EVENTS.filter(e => eventNamesInData.includes(e) || eventNamesInData.length === 0).map(event => {
-              const active = selectedEvents.has(event);
-              return (
-                <button
-                  key={event}
-                  onClick={() => toggleEvent(event)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium border transition-all ${
-                    active
-                      ? (EVENT_COLORS[event] ?? "bg-gray-200 text-gray-700 border-gray-300")
-                      : "bg-white text-gray-400 border-gray-200 hover:border-gray-300"
-                  }`}
-                >
-                  {EVENT_LABELS[event] || event}
-                </button>
-              );
-            })}
-          </div>
+          <MultiSelectDropdown
+            label="Událost"
+            options={ALL_EVENTS.map(e => ({ value: e, label: EVENT_LABELS[e] || e }))}
+            selected={selectedEvents}
+            onToggle={makeToggle(setSelectedEvents, [...ALL_EVENTS])}
+            allLabel="Všechny události"
+          />
 
-          <div className="h-4 w-px bg-gray-300 ml-1" />
-
-          <span className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Konv. stránka:</span>
-          <select
-            value={filterPage}
-            onChange={e => setFilterPage(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-red-400 max-w-xs"
-          >
-            <option value="all">Všechny</option>
-            {conversionPages.map(p => (
-              <option key={p} value={p}>{p}</option>
-            ))}
-          </select>
+          <MultiSelectDropdown
+            label="Konv. stránka"
+            options={conversionPages.map(p => ({ value: p, label: p }))}
+            selected={selectedPages}
+            onToggle={makeToggle(setSelectedPages, conversionPages)}
+            allLabel="Všechny stránky"
+          />
 
           {!loading && rows.length > 0 && (
             <span className="ml-auto text-xs text-gray-400">

@@ -17,7 +17,7 @@ const sections: { key: Section; label: string; icon: React.ReactNode }[] = [
   },
   {
     key: "conversion",
-    label: "Konverzní cesty",
+    label: "Konverzní cesty – GA",
     icon: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -95,10 +95,11 @@ const content: Record<Section, React.ReactNode> = {
       <H3>Karty rozpočtu</H3>
       <P>
         Tři karty zobrazují plnění měsíčního plánu. Plán se automaticky načítá
-        z Google Sheets a vždy odráží aktuální měsíc (např. <em>Plán pro Květen 2026</em>).
+        z Google Sheets a v názvu karty vždy uvádí konkrétní měsíc, pro který platí
+        (např. <em>Celkem rozpočet pro Květen 2026</em>).
       </P>
       <Ul>
-        <Li><strong>Celkem rozpočet</strong> – celkový měsíční plán výdajů na reklamu (součet za všechny kanály)</Li>
+        <Li><strong>Celkem rozpočet pro [měsíc]</strong> – celkový měsíční plán výdajů na reklamu (součet za všechny kanály)</Li>
         <Li><strong>Ideální útrata ke včerejšímu dni</strong> – přepočtená ideální výše výdajů k včerejšímu datu; vypočítáno v sheetu jako poměrná část měsíčního rozpočtu</Li>
         <Li><strong>Aktuální útrata za vybrané datum</strong> – skutečné výdaje za zvolené období z reklamních systémů</Li>
       </Ul>
@@ -131,12 +132,20 @@ const content: Record<Section, React.ReactNode> = {
 
       <H3>Tabulka poptávek</H3>
       <P>
-        Zobrazuje jednotlivé poptávky načtené z Google Sheets (roky 2024, 2025, 2026).
+        Pod historickými výsledky se zobrazí nadpis <strong>Poptávky za vybrané období</strong>
+        a pod ním tabulka jednotlivých poptávek načtených z Google Sheets (roky 2024, 2025, 2026).
         Řazení je vzestupné dle čísla PK.
       </P>
       <Ul>
-        <Li><strong>Přepínač „Jen realizace"</strong> – zobrazí pouze poptávky označené jako realizace (Realizace = ANO)</Li>
-        <Li><strong>GA zdroj</strong> – zdroj zákazníka dle Google Analytics ve formátu <em>zdroj / médium</em>, např. <code className="bg-gray-100 px-1 rounded text-xs">google / cpc</code>, <code className="bg-gray-100 px-1 rounded text-xs">facebook / paid</code>, <code className="bg-gray-100 px-1 rounded text-xs">seznam / cpc</code></Li>
+        <Li>
+          <strong>Checkboxy filtrů</strong> – tři nezávislé checkboxy:{" "}
+          <Badge color="bg-green-100 text-green-800 border-green-200">Realizace</Badge>{" "}
+          <Badge color="bg-orange-100 text-orange-800 border-orange-200">V řešení</Badge>{" "}
+          <Badge color="bg-red-100 text-red-800 border-red-200">Nevyšlo</Badge>{" "}
+          — lze kombinovat (OR logika); bez zaškrtnutí se zobrazí vše
+        </Li>
+        <Li>Řádky jsou barevně rozlišeny: <span className="text-green-700 font-medium">zelená</span> = realizace, <span className="text-orange-600 font-medium">oranžová</span> = v řešení, ostatní střídají šedou a bílou</Li>
+        <Li><strong>GA zdroj</strong> – zdroj zákazníka dle Google Analytics ve formátu <em>zdroj / médium</em>, např. <code className="bg-gray-100 px-1 rounded text-xs">google / cpc</code>, <code className="bg-gray-100 px-1 rounded text-xs">facebook / paid</code>; pokud se nepodařilo spárovat, zobrazí se kurzívou <span className="italic text-gray-400">???</span></Li>
         <Li><strong>GA kampaň</strong> – název kampaně, ze které zákazník přišel</Li>
         <Li><strong>Marže 0 Kč</strong> – červeně zvýrazněná hodnota znamená, že marže ještě nebyla doplněna do sheetu</Li>
         <Li><strong>Marže ?</strong> – oranžový otazník znamená prázdnou nebo chybějící hodnotu marže</Li>
@@ -153,10 +162,11 @@ const content: Record<Section, React.ReactNode> = {
 
   conversion: (
     <div>
-      <H2>Konverzní cesty</H2>
+      <H2>Konverzní cesty – z Google Analytics</H2>
       <P>
         Přehled konverzních událostí z Google Analytics 4. Ukazuje, přes které stránky
         zákazník prošel, než provedl konverzní akci, a kde ke konverzi došlo.
+        Data pochází výhradně z GA4 — informace o realizacích ze Sheets zde nejsou dostupné.
       </P>
 
       <H3>Typy konverzí</H3>
@@ -170,10 +180,10 @@ const content: Record<Section, React.ReactNode> = {
 
       <H3>Sloupce tabulky</H3>
       <Ul>
-        <Li><strong>Název události</strong> – typ konverzní akce (přeložený název)</Li>
-        <Li><strong>Konverzní stránka</strong> – stránka webu, kde ke konverzi došlo</Li>
-        <Li><strong>Cesta uživatele</strong> – sekvence stránek, které zákazník navštívil před konverzí (až 15 kroků)</Li>
-        <Li><strong>Počet uživatelů</strong> – kolik unikátních uživatelů provedlo danou akci na dané cestě</Li>
+        <Li><strong>Název události</strong> – typ konverzní akce (přeložený název); kliknutím na záhlaví lze seřadit</Li>
+        <Li><strong>Konverzní stránka</strong> – stránka webu, kde ke konverzi došlo; kliknutím na záhlaví lze seřadit</Li>
+        <Li><strong>Cesta uživatele</strong> – sekvence stránek, které zákazník navštívil před konverzí (až 15 kroků); řazení probíhá dle <em>počtu kroků cesty</em> (ne dle uživatelů)</Li>
+        <Li><strong>Počet uživatelů</strong> – kolik unikátních uživatelů provedlo danou akci na dané cestě; záhlaví je klikatelné pro řazení</Li>
       </Ul>
 
       <H3>Volitelné sloupce</H3>
@@ -192,15 +202,15 @@ const content: Record<Section, React.ReactNode> = {
 
       <H3>Filtry</H3>
       <Ul>
-        <Li><strong>Událost</strong> – výběr jednoho nebo více typů konverzí</Li>
-        <Li><strong>Konverzní stránka</strong> – filtrování dle stránky, kde ke konverzi došlo</Li>
+        <Li><strong>Událost</strong> – rozbalovací seznam s typy konverzí; v závorce je uveden celkový počet uživatelů pro každý typ</Li>
+        <Li><strong>Konverzní stránka</strong> – filtrování dle stránky, kde ke konverzi došlo; v závorce je celkový počet uživatelů na dané stránce</Li>
       </Ul>
 
       <H3>Řazení</H3>
       <P>
-        Kliknutím na záhlaví sloupce se tabulka seřadí vzestupně, druhým kliknutím
-        sestupně — aktivní směr zobrazuje šipka. Sloupec „Cesta uživatele" řadí dle
-        počtu uživatelů.
+        Kliknutím na záhlaví sloupce se tabulka seřadí — prvním kliknutím vzestupně,
+        druhým sestupně. Aktivní sloupec a směr zobrazuje šipka (↑ / ↓). Sloupec
+        „Cesta uživatele" řadí dle počtu kroků cesty (od nejkratší po nejdelší nebo naopak).
       </P>
     </div>
   ),
@@ -218,13 +228,18 @@ const content: Record<Section, React.ReactNode> = {
       </P>
       <Ul>
         <Li><strong>KPI karty</strong> – celkový počet zobrazení stránek, relací, unikátních uživatelů, průměrná doba na webu a průměrná míra odchodu</Li>
-        <Li><strong>Top stránky dle zobrazení</strong> – tabulka 10 nejnavštěvovanějších stránek s relativními pruhy; kliknutím na řádek zobrazíte detail dané stránky</Li>
+        <Li>
+          <strong>Top stránky</strong> – tabulka nejnavštěvovanějších stránek s relativními pruhy a stránkováním po 10 položkách (tlačítka ← →); kliknutím na řádek zobrazíte detail dané stránky
+        </Li>
+        <Li>
+          <strong>Řazení v tabulce top stránek</strong> – kliknutím na záhlaví sloupce (Zobrazení, Relace, Uživatelé, Doba, Odchod) lze tabulku seřadit; šipka ↑/↓ ukazuje aktivní řazení, druhým kliknutím se obrátí směr
+        </Li>
       </Ul>
 
       <H3>Levý panel – seznam stránek</H3>
       <Ul>
         <Li>Vyhledávací pole pro filtrování dle URL nebo názvu stránky</Li>
-        <Li>Tlačítka pro řazení: Zobrazení, Relace, Uživatelé, Doba, Odchod</Li>
+        <Li>Tlačítka pro řazení: Zobrazení, Relace, Uživatelé, Doba, Odchod — aktivní metrika je zvýrazněna červeně a zobrazuje se jako primární hodnota u každé stránky v panelu; vedle ní je sekundárně zobrazeno číslo zobrazení (pokud je zvolena jiná metrika)</Li>
         <Li>Panel lze skrýt/zobrazit šipkou vlevo</Li>
       </Ul>
 

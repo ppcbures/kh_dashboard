@@ -12,6 +12,7 @@ interface ConversionRow {
   conversionPage: string;
   userPath: string;
   formFullname: string;
+  realizace: string;
   users: number;
 }
 
@@ -152,7 +153,8 @@ export default function ConversionPage() {
   // Filtry (prázdný Set = vše vybráno)
   const [selectedEvents, setSelectedEvents] = useState<Set<string>>(new Set<string>());
   const [selectedPages, setSelectedPages] = useState<Set<string>>(new Set<string>());
-  const [onlyRealizace, setOnlyRealizace] = useState(false);
+  // realizaceFilter: "all" | "realizace" (=Ano) | "v_reseni" (=V řešení)
+  const [realizaceFilter, setRealizaceFilter] = useState<"all" | "realizace" | "v_reseni">("all");
 
   // Sloupce
   const [showDate, setShowDate]   = useState(false);
@@ -254,7 +256,9 @@ export default function ConversionPage() {
     const filtered = rows.filter(r =>
       (selectedEvents.size === 0 || selectedEvents.has(r.eventName)) &&
       (selectedPages.size === 0 || selectedPages.has(r.conversionPage)) &&
-      (!onlyRealizace || r.eventName === "generate_lead")
+      (realizaceFilter === "all" ||
+       (realizaceFilter === "realizace" && r.realizace === "Ano") ||
+       (realizaceFilter === "v_reseni" && r.realizace === "V řešení"))
     );
 
     const map = new Map<string, GroupedRow>();
@@ -285,7 +289,7 @@ export default function ConversionPage() {
     });
 
     return list;
-  }, [rows, selectedEvents, selectedPages, onlyRealizace, showDate, showName, sortKey, sortDir]);
+  }, [rows, selectedEvents, selectedPages, realizaceFilter, showDate, showName, sortKey, sortDir]);
 
   // Auth error
   if (authError) {
@@ -350,21 +354,26 @@ export default function ConversionPage() {
             allLabel="Všechny stránky"
           />
 
-          {/* Jen realizace */}
+          {/* Realizace filtry */}
           <button
-            onClick={() => setOnlyRealizace(o => !o)}
+            onClick={() => setRealizaceFilter(f => f === "realizace" ? "all" : "realizace")}
             className={`flex items-center gap-1.5 border rounded-lg px-3 py-1.5 text-xs transition-colors ${
-              onlyRealizace
-                ? "border-orange-300 bg-orange-50 text-orange-700"
+              realizaceFilter === "realizace"
+                ? "border-green-400 bg-green-50 text-green-700 font-semibold"
                 : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
             }`}
           >
             Jen realizace
-            {onlyRealizace && (
-              <span className="bg-orange-100 text-orange-700 border border-orange-200 rounded px-1.5 py-0.5 text-[10px] font-semibold ml-0.5">
-                Jen v řešení
-              </span>
-            )}
+          </button>
+          <button
+            onClick={() => setRealizaceFilter(f => f === "v_reseni" ? "all" : "v_reseni")}
+            className={`flex items-center gap-1.5 border rounded-lg px-3 py-1.5 text-xs transition-colors ${
+              realizaceFilter === "v_reseni"
+                ? "border-orange-300 bg-orange-50 text-orange-700 font-semibold"
+                : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+            }`}
+          >
+            Jen v řešení
           </button>
 
           {!loading && rows.length > 0 && (
@@ -482,14 +491,20 @@ export default function ConversionPage() {
                     )}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
-                    {row.eventName === "generate_lead" ? (
+                    {row.realizace === "Ano" ? (
+                      <span className="text-xs px-2 py-1 rounded border font-medium bg-green-100 text-green-700 border-green-200">
+                        Ano
+                      </span>
+                    ) : row.realizace === "V řešení" ? (
                       <span className="text-xs px-2 py-1 rounded border font-medium bg-orange-100 text-orange-700 border-orange-200">
                         V řešení
                       </span>
-                    ) : (
+                    ) : row.realizace === "Ne" ? (
                       <span className="text-xs px-2 py-1 rounded border font-medium bg-red-100 text-red-700 border-red-200">
                         Ne
                       </span>
+                    ) : (
+                      <span className="text-gray-300 text-xs">—</span>
                     )}
                   </td>
                   {showName && (

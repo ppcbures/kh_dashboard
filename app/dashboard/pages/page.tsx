@@ -146,6 +146,8 @@ export default function PagesAnalysis() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [sortBy, setSortBy] = useState<GaSortKey>("views");
   const [topPage, setTopPage] = useState(0);
+  const [tableSortBy,  setTableSortBy]  = useState<GaSortKey>("views");
+  const [tableSortDir, setTableSortDir] = useState<"asc" | "desc">("desc");
 
   const accessToken = (session as { accessToken?: string })?.accessToken;
 
@@ -312,8 +314,18 @@ export default function PagesAnalysis() {
     }
   }, [accessToken, selectedProperty, dateRange]);
 
-  // Reset stránkování při nových datech
-  useEffect(() => { setTopPage(0); }, [pages]);
+  // Reset stránkování při nových datech nebo změně řazení tabulky
+  useEffect(() => { setTopPage(0); }, [pages, tableSortBy, tableSortDir]);
+
+  const handleTableSort = (key: GaSortKey) => {
+    if (tableSortBy === key) {
+      setTableSortDir(d => d === "asc" ? "desc" : "asc");
+    } else {
+      setTableSortBy(key);
+      // bounceRate a avgDuration — výchozí vzestupně (nižší = lepší), ostatní sestupně
+      setTableSortDir(key === "bounceRate" || key === "avgDuration" ? "asc" : "desc");
+    }
+  };
 
   const METRIC_LABEL: Record<GaSortKey, string> = {
     views: "zobrazení", sessions: "relací", users: "uživatelů",
@@ -525,8 +537,11 @@ export default function PagesAnalysis() {
                 const avgBounce     = pages.reduce((s, p) => s + p.bounceRate, 0) / pages.length;
                 const avgDur        = pages.reduce((s, p) => s + p.avgDuration, 0) / pages.length;
                 const TOP_PAGE_SIZE = 10;
-                const sortedAll     = [...pages].sort((a, b) => b.views - a.views);
-                const maxViews      = sortedAll[0]?.views || 1;
+                const sortedAll = [...pages].sort((a, b) => {
+                  const dir = tableSortDir === "asc" ? 1 : -1;
+                  return (a[tableSortBy] - b[tableSortBy]) * dir;
+                });
+                const maxViews      = [...pages].reduce((m, p) => Math.max(m, p.views), 1);
                 const totalTopPages = Math.ceil(sortedAll.length / TOP_PAGE_SIZE);
                 const top10         = sortedAll.slice(topPage * TOP_PAGE_SIZE, (topPage + 1) * TOP_PAGE_SIZE);
 
@@ -567,11 +582,35 @@ export default function PagesAnalysis() {
                           <thead>
                             <tr className="bg-gray-50 border-b border-gray-200">
                               <th className="text-left px-4 py-3 text-gray-600 font-semibold">Stránka</th>
-                              <th className="text-right px-4 py-3 text-gray-600 font-semibold w-24">Zobrazení</th>
-                              <th className="text-right px-4 py-3 text-gray-600 font-semibold w-20">Relace</th>
-                              <th className="text-right px-4 py-3 text-gray-600 font-semibold w-20">Uživatelé</th>
-                              <th className="text-right px-4 py-3 text-gray-600 font-semibold w-20">Prům. doba</th>
-                              <th className="text-right px-4 py-3 text-gray-600 font-semibold w-20">Odchod</th>
+                              {([
+                                { key: "views"       as GaSortKey, label: "Zobrazení",  w: "w-24" },
+                                { key: "sessions"    as GaSortKey, label: "Relace",      w: "w-20" },
+                                { key: "users"       as GaSortKey, label: "Uživatelé",   w: "w-20" },
+                                { key: "avgDuration" as GaSortKey, label: "Prům. doba",  w: "w-20" },
+                                { key: "bounceRate"  as GaSortKey, label: "Odchod",      w: "w-20" },
+                              ]).map(col => (
+                                <th
+                                  key={col.key}
+                                  onClick={() => handleTableSort(col.key)}
+                                  className={`text-right px-4 py-3 font-semibold ${col.w} cursor-pointer select-none hover:bg-gray-100 transition-colors ${
+                                    tableSortBy === col.key ? "text-gray-900" : "text-gray-500"
+                                  }`}
+                                >
+                                  <span className="inline-flex items-center justify-end gap-1">
+                                    {col.label}
+                                    {tableSortBy === col.key ? (
+                                      <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                        <path strokeLinecap="round" strokeLinejoin="round"
+                                          d={tableSortDir === "asc" ? "M5 15l7-7 7 7" : "M19 9l-7 7-7-7"} />
+                                      </svg>
+                                    ) : (
+                                      <svg className="w-3.5 h-3.5 flex-shrink-0 opacity-25" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M8 9l4-4 4 4M16 15l-4 4-4-4" />
+                                      </svg>
+                                    )}
+                                  </span>
+                                </th>
+                              ))}
                             </tr>
                           </thead>
                           <tbody>

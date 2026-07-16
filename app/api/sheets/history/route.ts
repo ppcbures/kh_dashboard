@@ -1,41 +1,27 @@
 import { NextResponse } from "next/server";
+import {
+  LEADS_YEAR_SHEETS,
+  leadsSheetUrl,
+  fetchCSV,
+  parseNewRows,
+} from "@/lib/sheets";
 
-const SHEET_ID = "1w4mcPVe3Xhj46Lj0I4CYjaPivwCGRQ5q0jl7QtwetPc";
+// Ruční historický sheet — používá se jen pro 2024 (leads sheet pro ten rok
+// nemá spolehlivá data, sloupec Datum obsahuje "SČ" místo skutečného data).
+const HISTORY_SHEET_ID = "1w4mcPVe3Xhj46Lj0I4CYjaPivwCGRQ5q0jl7QtwetPc";
+const HISTORY_GID_2024 = "0";
 
-const YEAR_GIDS: Record<number, string> = {
-  2024: "0",
-  2025: "544010130",
-  2026: "456676493",
-};
+// Denní útrata dle kanálů — používá se pro dopočet měsíční útraty za 2025/2026.
+const ADSPEND_SHEET_ID = "1tptPD0plitUuPn9_8lk17bNCbBT2kDdLzuV9Kglu5xg";
+const ADSPEND_GID = "201491332";
 
-function sheetUrl(gid: string) {
-  return `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${gid}`;
-}
+const MONTH_NAMES = [
+  "Leden", "Únor", "Březen", "Duben", "Květen", "Červen",
+  "Červenec", "Srpen", "Září", "Říjen", "Listopad", "Prosinec",
+];
 
-function parseCSV(text: string): string[][] {
-  const rows: string[][] = [];
-  let currentRow: string[] = [];
-  let field = "";
-  let inQ = false;
-  for (let i = 0; i < text.length; i++) {
-    const ch = text[i];
-    if (ch === '"') {
-      if (inQ && text[i + 1] === '"') { field += '"'; i++; }
-      else inQ = !inQ;
-    } else if (ch === "," && !inQ) {
-      currentRow.push(field.trim()); field = "";
-    } else if ((ch === "\n" || ch === "\r") && !inQ) {
-      if (ch === "\r" && text[i + 1] === "\n") i++;
-      currentRow.push(field.trim()); field = "";
-      if (currentRow.some(f => f !== "")) rows.push(currentRow);
-      currentRow = [];
-    } else {
-      field += ch;
-    }
-  }
-  currentRow.push(field.trim());
-  if (currentRow.some(f => f !== "")) rows.push(currentRow);
-  return rows;
+function sheetCsvUrl(sheetId: string, gid: string) {
+  return `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
 }
 
 export interface MonthRow {
@@ -49,8 +35,8 @@ export interface MonthRow {
   marze: string;
 }
 
-function parseRows(csv: string): MonthRow[] {
-  const rows = parseCSV(csv);
+/** Parsuje řádky z ručního historického sheetu (dnes už jen pro 2024). */
+function parseManualRows(rows: string[][]): MonthRow[] {
   if (rows.length < 2) return [];
   // Cols: 0=č., 1=Měsíc, 2=Útrata, 3=Počet poptávek, 4=Cena za poptávku,
   //       5=Počet realizací, 6=Cena za realizaci, 7=Hrubá marže realizací
@@ -68,28 +54,84 @@ function parseRows(csv: string): MonthRow[] {
     }));
 }
 
+function fmtKc(n: number): string {
+  return Math.round(n).toLocaleString("cs-CZ") + " Kč";
+}
+
+/** Součet denní útraty (všechny kanály) po měsících pro daný rok. Index 0 = leden. */
+async function fetchMonthlySpend(year: number): Promise<number[]> {
+  const rows = await fetchCSV(sheetCsvUrl(ADSPEND_SHEET_ID, ADSPEND_GID));
+  const totals = new Array(12).fill(0);
+  if (rows.length < 2) return totals;
+
+  const header = rows[0].map(h => h.toLowerCase().trim());
+  const dateIdx = header.indexOf("date");
+  const costIdx = header.indexOf("cost");
+  if (dateIdx < 0 || costIdx < 0) return totals;
+
+  const prefix = `${year}-`;
+  for (const row of rows.slice(1)) {
+    const date = row[dateIdx];
+    if (!date || !date.startsWith(prefix)) continue;
+    const month = parseInt(date.substring(5, 7), 10);
+    if (month < 1 || month > 12) continue;
+    totals[month - 1] += parseFloat(row[costIdx]) || 0;
+  }
+  return totals;
+}
+
+/** Dopočítá měsíční přehled roku z leads sheetu (poptávky/realizace/marže) a ad-spend sheetu (útrata). */
+async function computeYearRows(year: number): Promise<MonthRow[]> {
+  const sheetDef = LEADS_YEAR_SHEETS[year];
+  if (!sheetDef) return [];
+
+  const [leadsCsv, monthlySpend] = await Promise.all([
+    fetchCSV(leadsSheetUrl(sheetDef.gid)).catch(() => []),
+    fetchMonthlySpend(year).catch(() => new Array(12).fill(0)),
+  ]);
+
+  const leads = parseNewRows(leadsCsv, `${year}-01-01`, `${year}-12-31`, sheetDef.noDate ?? false);
+
+  const rows: MonthRow[] = [];
+  for (let m = 1; m <= 12; m++) {
+    const mm = String(m).padStart(2, "0");
+    const monthLeads = leads.filter(l => l.date.startsWith(`${year}-${mm}`));
+
+    const poptavky = monthLeads.length;
+    const realizace = monthLeads.filter(l => l.realizace === "Ano").length;
+    const marzeSum = monthLeads
+      .filter(l => l.realizace === "Ano" && l.marze !== null)
+      .reduce((sum, l) => sum + (l.marze ?? 0), 0);
+    const utrata = Math.round(monthlySpend[m - 1] || 0);
+
+    const hasData = poptavky > 0 || utrata > 0;
+
+    rows.push({
+      cislo: String(m),
+      mesic: MONTH_NAMES[m - 1],
+      utrata:      hasData ? fmtKc(utrata) : "",
+      poptavky:    hasData ? String(poptavky) : "",
+      cpPoptavky:  hasData && poptavky > 0  ? fmtKc(utrata / poptavky)  : "",
+      realizace:   hasData ? String(realizace) : "",
+      cpRealizace: hasData && realizace > 0 ? fmtKc(utrata / realizace) : "",
+      marze:       hasData ? fmtKc(marzeSum) : "",
+    });
+  }
+  return rows;
+}
+
 export async function GET() {
   try {
-    const results = await Promise.allSettled(
-      Object.entries(YEAR_GIDS).map(async ([year, gid]) => {
-        const res = await fetch(sheetUrl(gid), { redirect: "follow", cache: "no-store" });
-        if (!res.ok) throw new Error(`${year}: HTTP ${res.status}`);
-        const text = await res.text();
-        return { year: parseInt(year), rows: parseRows(text) };
-      })
-    );
-
-    const data: Record<number, MonthRow[]> = {};
-    for (const r of results) {
-      if (r.status === "fulfilled") {
-        data[r.value.year] = r.value.rows;
-      }
-    }
+    const [manualResult, y2025, y2026] = await Promise.allSettled([
+      fetchCSV(sheetCsvUrl(HISTORY_SHEET_ID, HISTORY_GID_2024)),
+      computeYearRows(2025),
+      computeYearRows(2026),
+    ]);
 
     return NextResponse.json({
-      y2024: data[2024] ?? [],
-      y2025: data[2025] ?? [],
-      y2026: data[2026] ?? [],
+      y2024: manualResult.status === "fulfilled" ? parseManualRows(manualResult.value) : [],
+      y2025: y2025.status === "fulfilled" ? y2025.value : [],
+      y2026: y2026.status === "fulfilled" ? y2026.value : [],
     });
   } catch (error) {
     console.error("history error:", error);
